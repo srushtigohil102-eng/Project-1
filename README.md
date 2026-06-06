@@ -1,1 +1,1 @@
-# Project-1
+<!-- Member C: Frontend Lead — workspace initialized -->
