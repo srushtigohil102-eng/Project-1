@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React, { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
@@ -9,20 +9,34 @@ type NavItem = {
   icon: string;
   label: string;
   path: string;
+  badge?: number;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
   { icon: '👥', label: 'Employees', path: '/employees' },
-  { icon: '📋', label: 'Leave', path: '/leave' },
+  { icon: '📋', label: 'Leave', path: '/leave', badge: 3 },
   { icon: '💰', label: 'Payroll', path: '/payroll' },
 ];
+
+const formatPageName = (pathname: string): string => {
+  const segment = pathname.split('/').filter(Boolean).pop() ?? 'home';
+  return segment.charAt(0).toUpperCase() + segment.slice(1);
+};
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isNavigating, setIsNavigating] = useState(false);
 
+  const pageName = formatPageName(location.pathname);
   const isActive = (path: string): boolean => location.pathname === path;
+
+  useEffect(() => {
+    setIsNavigating(true);
+    const timer = setTimeout(() => setIsNavigating(false), 500);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
 
   const handleLogout = (): void => {
     navigate('/');
@@ -30,7 +44,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen">
-      <aside className="fixed left-0 top-0 flex h-screen w-60 flex-col bg-slate-900">
+      {isNavigating && (
+        <div className="fixed left-0 right-0 top-0 z-50 h-0.5 bg-blue-600" />
+      )}
+
+      <aside className="fixed left-0 top-0 flex h-screen w-60 flex-col border-r border-slate-700 bg-slate-900">
         <div className="p-4">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 shrink-0 rounded-md bg-blue-600" />
@@ -47,6 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
+                title={item.label}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
                     ? 'bg-blue-600 text-white'
@@ -55,6 +74,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 <span aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
+                {item.badge !== undefined && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -79,10 +103,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span aria-hidden="true">🚪</span>
             <span>Logout</span>
           </button>
+
+          <p className="mt-4 text-center text-[10px] text-gray-500">v1.0.0</p>
         </div>
       </aside>
 
       <main className="ml-60 flex-1 overflow-y-auto bg-gray-50 p-6">
+        <p className="mb-4 text-xs text-gray-400">
+          Home <span className="mx-1">&gt;</span> {pageName}
+        </p>
         {children}
       </main>
     </div>
