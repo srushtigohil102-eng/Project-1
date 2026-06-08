@@ -1,12 +1,9 @@
-import TopBar from '../components/TopBar';
-
 function EmployeesPage() {
   return (
-    <div>
-      <TopBar title="Employees" />
-      <div className="p-6 lg:p-8">
+    <>
       <header className="mb-6">
-        <p className="text-sm text-gray-500">Manage your team members</p>
+        <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
+        <p className="mt-1 text-sm text-gray-500">Manage your team members</p>
       </header>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -48,8 +45,7 @@ function EmployeesPage() {
           </tbody>
         </table>
       </div>
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -1,5 +1,3 @@
-import TopBar from '../components/TopBar';
-
 type StatCardProps = {
   label: string;
   value: string;
@@ -42,11 +40,10 @@ function DashboardPage() {
   ];
 
   return (
-    <div>
-      <TopBar title="Dashboard" />
-      <div className="p-6 lg:p-8">
+    <>
       <header className="mb-8">
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-500">
           Welcome back! Here&apos;s what&apos;s happening.
         </p>
       </header>
@@ -65,8 +62,7 @@ function DashboardPage() {
           <p className="text-sm text-gray-400">No recent activity</p>
         </div>
       </section>
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import TopBar from '../components/TopBar';
 
 type LeaveTab = 'my-leaves' | 'all-requests';
 
@@ -7,12 +6,11 @@ function LeavePage() {
   const [activeTab, setActiveTab] = useState<LeaveTab>('my-leaves');
 
   return (
-    <div>
-      <TopBar title="Leave Management" />
-      <div className="p-6 lg:p-8">
+    <>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <header>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
+          <p className="mt-1 text-sm text-gray-500">
             Track and manage leave requests
           </p>
         </header>
@@ -24,7 +22,7 @@ function LeavePage() {
         </button>
       </div>
 
-      <div className="mb-6 flex gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 w-fit">
+      <div className="mb-6 flex w-fit gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
         <button
           type="button"
           onClick={() => setActiveTab('my-leaves')}
@@ -77,8 +75,7 @@ function LeavePage() {
           </tbody>
         </table>
       </div>
-      </div>
-    </div>
+    </>
   );
 }
 
