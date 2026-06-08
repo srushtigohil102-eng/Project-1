@@ -1,13 +1,33 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-export const connectDB = async () => {
+dotenv.config();
+
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/hrms_payroll";
+
+export const connectDB = async (): Promise<void> => {
   try {
-    await mongoose.connect(
-      "mongodb://localhost:27017/hrms"
-    );
-
-    console.log("MongoDB Connected");
+    await mongoose.connect(MONGODB_URI);
+    console.log(`✅ MongoDB Connected Successfully`);
+    console.log(`📦 Database: ${mongoose.connection.name}`);
   } catch (error) {
-    console.error(error);
+    console.error("❌ MongoDB Connection Failed:", error);
+    process.exit(1);
   }
-}; 
+};
+
+// Handle connection events
+mongoose.connection.on("disconnected", () => {
+  console.warn("⚠️ MongoDB disconnected");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB error:", err);
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await mongoose.disconnect();
+  console.log("MongoDB disconnected through app termination");
+  process.exit(0);
+});

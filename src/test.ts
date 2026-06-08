@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Department from "./models/Department";
+import { Department } from "./models/Department";
 
 async function test() {
   try {
