@@ -1,0 +1,56 @@
+name: HRMS CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Backend Dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Install Frontend Dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Backend TypeScript Check
+        working-directory: ./server
+        run: npx tsc --noEmit
+
+      - name: Backend Lint
+        working-directory: ./server
+        run: npm run lint
+
+      - name: Frontend Lint
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Backend Tests
+        working-directory: ./server
+        run: npm test
+
+      - name: Frontend Build
+        working-directory: ./client
+        run: npm run build
