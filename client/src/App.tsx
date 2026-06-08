@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
@@ -21,25 +21,43 @@ function NotFoundPage() {
   );
 }
 
-function LayoutRoute() {
-  return (
-    <Layout>
-      <Outlet />
-    </Layout>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
-        <Route element={<LayoutRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/employees" element={<EmployeesPage />} />
-          <Route path="/leave" element={<LeavePage />} />
-          <Route path="/payroll" element={<PayrollPage />} />
-        </Route>
+        <Route
+          path="/dashboard"
+          element={
+            <Layout>
+              <DashboardPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/employees"
+          element={
+            <Layout>
+              <EmployeesPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/leave"
+          element={
+            <Layout>
+              <LeavePage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/payroll"
+          element={
+            <Layout>
+              <PayrollPage />
+            </Layout>
+          }
+        />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
