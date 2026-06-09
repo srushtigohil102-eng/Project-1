@@ -1,5 +1,6 @@
 import React, { useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import useAuth from '../hooks/useAuth';
 
 interface LayoutProps {
   children: ReactNode;
@@ -12,9 +13,17 @@ type NavItem = {
   badge?: number;
 };
 
-const NAV_ITEMS: NavItem[] = [
+const HR_MANAGER_NAV_ITEMS: NavItem[] = [
   { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
   { icon: '👥', label: 'Employees', path: '/employees' },
+  { icon: '📋', label: 'Leave', path: '/leave', badge: 3 },
+  { icon: '💰', label: 'Payroll', path: '/payroll' },
+  { icon: '📊', label: 'Reports', path: '/reports' },
+  { icon: '⚙️', label: 'Settings', path: '/settings' },
+];
+
+const EMPLOYEE_NAV_ITEMS: NavItem[] = [
+  { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
   { icon: '📋', label: 'Leave', path: '/leave', badge: 3 },
   { icon: '💰', label: 'Payroll', path: '/payroll' },
 ];
@@ -24,11 +33,15 @@ const formatPageName = (pathname: string): string => {
   return segment.charAt(0).toUpperCase() + segment.slice(1);
 };
 
+const formatRoleLabel = (role: 'hr_manager' | 'employee'): string =>
+  role === 'hr_manager' ? 'HR Manager' : 'Employee';
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { user, isHRManager, logout } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
 
+  const navItems = isHRManager ? HR_MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
   const pageName = formatPageName(location.pathname);
   const isActive = (path: string): boolean => location.pathname === path;
 
@@ -37,10 +50,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const timer = setTimeout(() => setIsNavigating(false), 500);
     return () => clearTimeout(timer);
   }, [location.pathname]);
-
-  const handleLogout = (): void => {
-    navigate('/');
-  };
 
   return (
     <div className="flex h-screen">
@@ -58,7 +67,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(item.path);
 
             return (
@@ -85,19 +94,49 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         <div className="border-t border-slate-700 p-4">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
-              HR
+          {user ? (
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                {user.name[0]?.toUpperCase() ?? '?'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-white">
+                    {user.name}
+                  </p>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      isHRManager
+                        ? 'bg-blue-600/20 text-blue-300'
+                        : 'bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {isHRManager ? 'Admin' : 'Staff'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  {formatRoleLabel(user.role)}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  <span className="text-xs text-gray-500">Online</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-white">HR Manager</p>
-              <p className="text-xs text-gray-400">Admin</p>
+          ) : (
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-700" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-24 animate-pulse rounded bg-slate-700" />
+                <div className="h-3 w-16 animate-pulse rounded bg-slate-700" />
+                <div className="h-3 w-14 animate-pulse rounded bg-slate-700" />
+              </div>
             </div>
-          </div>
+          )}
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-500"
           >
             <span aria-hidden="true">🚪</span>
