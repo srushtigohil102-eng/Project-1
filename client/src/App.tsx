@@ -1,4 +1,5 @@
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './layouts/Layout';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
@@ -29,33 +30,41 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <Layout>
-              <DashboardPage />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <DashboardPage />
+              </Layout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/employees"
           element={
-            <Layout>
-              <EmployeesPage />
-            </Layout>
+            <ProtectedRoute requiredRole="hr_manager">
+              <Layout>
+                <EmployeesPage />
+              </Layout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/leave"
           element={
-            <Layout>
-              <LeavePage />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <LeavePage />
+              </Layout>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/payroll"
           element={
-            <Layout>
-              <PayrollPage />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <PayrollPage />
+              </Layout>
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<NotFoundPage />} />
