@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import useAuth from '../hooks/useAuth';
@@ -16,6 +16,32 @@ const DEPARTMENT_OPTIONS = [
 type DepartmentFilter = (typeof DEPARTMENT_OPTIONS)[number];
 
 const SKELETON_ROW_COUNT = 5;
+const PAGE_SIZE = 8;
+const MAX_VISIBLE_PAGES = 5;
+
+function getVisiblePageNumbers(
+  currentPage: number,
+  totalPages: number,
+): number[] {
+  if (totalPages <= MAX_VISIBLE_PAGES) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  let start = currentPage - Math.floor(MAX_VISIBLE_PAGES / 2);
+  let end = start + MAX_VISIBLE_PAGES - 1;
+
+  if (start < 1) {
+    start = 1;
+    end = MAX_VISIBLE_PAGES;
+  }
+
+  if (end > totalPages) {
+    end = totalPages;
+    start = totalPages - MAX_VISIBLE_PAGES + 1;
+  }
+
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
 
 function formatSalary(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -254,6 +280,73 @@ function EmployeeRow({
   );
 }
 
+interface PaginationBarProps {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}
+
+function PaginationBar({
+  currentPage,
+  totalPages,
+  totalCount,
+  pageSize,
+  onPageChange,
+}: PaginationBarProps) {
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  const visiblePages = getVisiblePageNumbers(currentPage, totalPages);
+  const isFirstPage = currentPage === 1;
+  const isLastPage = currentPage === totalPages;
+
+  return (
+    <div className="flex flex-col gap-4 border-t border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-gray-600">
+        Showing {startIndex + 1} to {endIndex} of {totalCount} employees
+      </p>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={isFirstPage}
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span aria-hidden="true">←</span>
+          Previous
+        </button>
+
+        {visiblePages.map((page) => (
+          <button
+            key={page}
+            type="button"
+            onClick={() => onPageChange(page)}
+            className={`min-w-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              page === currentPage
+                ? 'bg-blue-600 text-white'
+                : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={isLastPage}
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EmployeesPage() {
   const { isHRManager } = useAuth();
   const { data: employees, isLoading, isError, error, refetch } =
@@ -263,6 +356,19 @@ function EmployeesPage() {
   const [department, setDepartment] = useState<DepartmentFilter>(
     'All Departments',
   );
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const hasActiveFilters =
+    search.trim().length > 0 || department !== 'All Departments';
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, department]);
+
+  const handleClearFilters = (): void => {
+    setSearch('');
+    setDepartment('All Departments');
+  };
 
   const handleAddEmployee = (): void => {
     window.alert('Add Employee form coming soon');
@@ -297,6 +403,15 @@ function EmployeesPage() {
     });
   }, [employees, search, department]);
 
+  const totalCount = filteredEmployees.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = (effectivePage - 1) * PAGE_SIZE;
+  const paginatedEmployees = filteredEmployees.slice(
+    startIndex,
+    startIndex + PAGE_SIZE,
+  );
+
   const columnCount = isHRManager ? 6 : 5;
 
   return (
@@ -319,9 +434,26 @@ function EmployeesPage() {
         )}
       </div>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <SearchInput value={search} onChange={setSearch} />
-        <DepartmentSelect value={department} onChange={setDepartment} />
+      <div className="mb-6 flex flex-col gap-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <SearchInput value={search} onChange={setSearch} />
+          <DepartmentSelect value={department} onChange={setDepartment} />
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-gray-500">
+              {totalCount} {totalCount === 1 ? 'result' : 'results'} found
+            </p>
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+            >
+              Clear filters ✕
+            </button>
+          </div>
+        )}
       </div>
 
       {isError ? (
@@ -377,7 +509,7 @@ function EmployeesPage() {
                 )}
 
                 {!isLoading &&
-                  filteredEmployees.map((employee) => (
+                  paginatedEmployees.map((employee) => (
                     <EmployeeRow
                       key={employee.id}
                       employee={employee}
@@ -389,6 +521,16 @@ function EmployeesPage() {
               </tbody>
             </table>
           </div>
+
+          {!isLoading && totalCount > 0 && (
+            <PaginationBar
+              currentPage={effectivePage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </div>
       )}
     </>
