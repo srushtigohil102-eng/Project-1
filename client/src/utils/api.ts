@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000';
+import { API_BASE_URL } from './config';
 const TOKEN_KEY = 'hrms_token';
 const USER_KEY = 'hrms_user';
 
@@ -19,7 +19,7 @@ async function apiFetch<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
   });

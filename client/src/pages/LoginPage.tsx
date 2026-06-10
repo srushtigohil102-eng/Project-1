@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth, { type UserType } from '../hooks/useAuth';
+import { API_BASE_URL } from '../utils/config';
 
 interface FormData {
   email: string;
@@ -28,7 +29,7 @@ interface LoginErrorResponse {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOGIN_URL = '/auth/login';
+const LOGIN_URL = `${API_BASE_URL}/auth/login`;
 
 // =============================================================================
 // MOCK LOGIN — remove this entire block when Member A's backend is ready.
