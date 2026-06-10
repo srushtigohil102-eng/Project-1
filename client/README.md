@@ -71,3 +71,20 @@ export default defineConfig([
   },
 ])
 ```
+<!--
+=============================================================================
+TEST USERS (seeded by Member B)
+Run the database seed script first, then use these credentials to log in:
+
+  HR Manager
+    Email:    hr@company.com
+    Password: password123
+
+  Employee
+    Email:    employee@company.com
+    Password: password123
+
+Frontend-only testing (no backend): set MOCK_LOGIN_ENABLED = true in
+LoginPage.tsx and use hr@test.com / test123
+=============================================================================
+-->

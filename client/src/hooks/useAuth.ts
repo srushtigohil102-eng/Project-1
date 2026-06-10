@@ -1,4 +1,11 @@
-import { useState, useEffect } from 'react';
+import {
+  createContext,
+  createElement,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 export interface UserType {
   id: string;
@@ -26,15 +33,23 @@ function readStoredAuth(): { token: string | null; user: UserType | null } {
   }
 }
 
-function useAuth() {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<UserType | null>(null);
+interface AuthContextValue {
+  token: string | null;
+  user: UserType | null;
+  isLoggedIn: boolean;
+  isHRManager: boolean;
+  isEmployee: boolean;
+  login: (newToken: string, newUser: UserType) => void;
+  logout: () => void;
+}
 
-  useEffect(() => {
-    const { token: storedToken, user: storedUser } = readStoredAuth();
-    setToken(storedToken);
-    setUser(storedUser);
-  }, []);
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState<string | null>(
+    () => readStoredAuth().token,
+  );
+  const [user, setUser] = useState<UserType | null>(() => readStoredAuth().user);
 
   const login = (newToken: string, newUser: UserType): void => {
     sessionStorage.setItem(TOKEN_KEY, newToken);
@@ -51,19 +66,30 @@ function useAuth() {
     window.location.href = '/';
   };
 
-  const isLoggedIn = token !== null;
-  const isHRManager = user?.role === 'hr_manager';
-  const isEmployee = user?.role === 'employee';
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      token,
+      user,
+      isLoggedIn: token !== null,
+      isHRManager: user?.role === 'hr_manager',
+      isEmployee: user?.role === 'employee',
+      login,
+      logout,
+    }),
+    [token, user],
+  );
 
-  return {
-    token,
-    user,
-    isLoggedIn,
-    isHRManager,
-    isEmployee,
-    login,
-    logout,
-  };
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+
+  return context;
 }
 
 export default useAuth;

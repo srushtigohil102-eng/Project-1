@@ -28,7 +28,31 @@ interface LoginErrorResponse {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOGIN_URL = 'http://localhost:5000/auth/login';
+const LOGIN_URL = '/auth/login';
+
+// =============================================================================
+// MOCK LOGIN — remove this entire block when Member A's backend is ready.
+// Set MOCK_LOGIN_ENABLED to false (or delete the block) to use the real API.
+// Test credentials: hr@test.com / test123
+// =============================================================================
+const MOCK_LOGIN_ENABLED = true;
+
+function mockLogin(email: string, password: string): LoginSuccessResponse | null {
+  if (email === 'hr@test.com' && password === 'test123') {
+    return {
+      token: 'mock-jwt-token-hr-manager',
+      user: {
+        id: 'mock-hr-1',
+        name: 'Test HR Manager',
+        email: 'hr@test.com',
+        role: 'hr_manager',
+      },
+    };
+  }
+
+  return null;
+}
+// =============================================================================
 
 function isUserRole(role: string): role is UserType['role'] {
   return role === 'employee' || role === 'hr_manager';
@@ -50,6 +74,19 @@ function validateForm(data: FormData): Errors {
   }
 
   return fieldErrors;
+}
+
+function toUserType(data: LoginSuccessResponse): UserType | null {
+  if (!isUserRole(data.user.role)) {
+    return null;
+  }
+
+  return {
+    id: data.user.id,
+    name: data.user.name,
+    email: data.user.email,
+    role: data.user.role,
+  };
 }
 
 function LoginPage() {
@@ -83,30 +120,44 @@ function LoginPage() {
     setErrors({});
     setIsLoading(true);
 
+    const email = formData.email.trim();
+    const { password } = formData;
+
     try {
-      const response = await fetch(LOGIN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email.trim(),
-          password: formData.password,
-        }),
-      });
+      if (MOCK_LOGIN_ENABLED) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
 
-      if (response.ok) {
-        const data = (await response.json()) as LoginSuccessResponse;
+        const data = mockLogin(email, password);
+        if (!data) {
+          setErrors({ general: 'Invalid email or password' });
+          return;
+        }
 
-        if (!isUserRole(data.user.role)) {
+        const user = toUserType(data);
+        if (!user) {
           setErrors({ general: 'Something went wrong. Please try again.' });
           return;
         }
 
-        const user: UserType = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role,
-        };
+        login(data.token, user);
+        navigate('/dashboard');
+        return;
+      }
+
+      const response = await fetch(LOGIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as LoginSuccessResponse;
+        const user = toUserType(data);
+
+        if (!user) {
+          setErrors({ general: 'Something went wrong. Please try again.' });
+          return;
+        }
 
         login(data.token, user);
         navigate('/dashboard');
@@ -235,7 +286,13 @@ function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-xs text-gray-400">
+        <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+          <p className="font-semibold">Demo accounts (password: Hrms@Dev2026!)</p>
+          <p className="mt-1">HR Manager — hr@company.com</p>
+          <p>Employee — employee@company.com</p>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-gray-400">
           HR Management System v1.0
         </p>
       </div>
