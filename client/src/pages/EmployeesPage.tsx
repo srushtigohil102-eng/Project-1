@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import Avatar from '../components/Avatar';
+import StatusBadge from '../components/StatusBadge';
 import useAuth from '../hooks/useAuth';
 import useEmployees, { type Employee } from '../hooks/useEmployees';
 
@@ -13,29 +15,7 @@ const DEPARTMENT_OPTIONS = [
 
 type DepartmentFilter = (typeof DEPARTMENT_OPTIONS)[number];
 
-const AVATAR_COLORS = [
-  'bg-blue-500',
-  'bg-emerald-500',
-  'bg-violet-500',
-  'bg-amber-500',
-  'bg-rose-500',
-  'bg-cyan-500',
-  'bg-indigo-500',
-  'bg-pink-500',
-  'bg-teal-500',
-  'bg-orange-500',
-];
-
 const SKELETON_ROW_COUNT = 5;
-
-function getAvatarColor(name: string): string {
-  const index = name.charCodeAt(0) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
-}
-
-function getInitials(name: string): string {
-  return name.charAt(0).toUpperCase();
-}
 
 function formatSalary(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -43,45 +23,6 @@ function formatSalary(amount: number): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
-}
-
-interface StatusBadgeProps {
-  status: Employee['status'];
-}
-
-function StatusBadge({ status }: StatusBadgeProps) {
-  const isActive = status === 'active';
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-        isActive
-          ? 'bg-green-100 text-green-700'
-          : 'bg-red-100 text-red-700'
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          isActive ? 'bg-green-500' : 'bg-red-500'
-        }`}
-      />
-      {isActive ? 'Active' : 'Inactive'}
-    </span>
-  );
-}
-
-interface EmployeeAvatarProps {
-  name: string;
-}
-
-function EmployeeAvatar({ name }: EmployeeAvatarProps) {
-  return (
-    <div
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getAvatarColor(name)}`}
-    >
-      {getInitials(name)}
-    </div>
-  );
 }
 
 function SearchIcon() {
@@ -170,7 +111,7 @@ function SkeletonRow({ showActions }: SkeletonRowProps) {
     <tr className="border-b border-gray-100">
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 animate-pulse rounded-full bg-gray-200" />
+          <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
           <div className="space-y-2">
             <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
             <div className="h-3 w-44 animate-pulse rounded bg-gray-200" />
@@ -274,7 +215,7 @@ function EmployeeRow({
     <tr className="border-b border-gray-100 bg-white transition-colors even:bg-gray-50/40 hover:bg-blue-50/60">
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <EmployeeAvatar name={employee.name} />
+          <Avatar name={employee.name} />
           <div className="min-w-0">
             <p className="truncate font-medium text-gray-900">{employee.name}</p>
             <p className="truncate text-sm text-gray-500">{employee.email}</p>
