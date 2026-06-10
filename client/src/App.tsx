@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './hooks/useAuth';
 import Layout from './layouts/Layout';
@@ -26,8 +26,7 @@ function NotFoundPage() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route
           path="/dashboard"
@@ -70,8 +69,7 @@ function App() {
           }
         />
         <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </BrowserRouter>
+      </Routes>
     </AuthProvider>
   );
 }
