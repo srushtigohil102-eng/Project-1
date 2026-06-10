@@ -35,7 +35,7 @@ const LOGIN_URL = '/auth/login';
 // Set MOCK_LOGIN_ENABLED to false (or delete the block) to use the real API.
 // Test credentials: hr@test.com / test123
 // =============================================================================
-const MOCK_LOGIN_ENABLED = true;
+const MOCK_LOGIN_ENABLED = false;
 
 function mockLogin(email: string, password: string): LoginSuccessResponse | null {
   if (email === 'hr@test.com' && password === 'test123') {
