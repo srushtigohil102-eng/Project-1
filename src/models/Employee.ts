@@ -1,5 +1,5 @@
-import mongoose, { Schema, HydratedDocument } from "mongoose";
-import crypto from "crypto";
+import mongoose, { Schema } from "mongoose";
+import bcrypt from "bcryptjs";
 import { IEmployee, EmployeeRole, EmployeeStatus, Gender, MaritalStatus } from "../interfaces/employee.interface";
 
 // Helper function to generate employee ID
@@ -7,21 +7,6 @@ function generateEmployeeId(): string {
   const year = new Date().getFullYear();
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
   return `EMP${year}${random}`;
-}
-
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const derivedKey = crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
-  return `${salt}:${derivedKey}`;
-}
-
-function verifyPassword(candidatePassword: string, storedPassword: string): boolean {
-  const [salt, key] = storedPassword.split(":");
-  if (!salt || !key) {
-    return false;
-  }
-  const derivedKey = crypto.pbkdf2Sync(candidatePassword, salt, 100000, 64, "sha512").toString("hex");
-  return crypto.timingSafeEqual(Buffer.from(key, "hex"), Buffer.from(derivedKey, "hex"));
 }
 
 const EmployeeSchema = new Schema<IEmployee>(
@@ -225,7 +210,7 @@ const EmployeeSchema = new Schema<IEmployee>(
   }
 );
 
-// Indexes for better query performance
+// Indexes
 EmployeeSchema.index({ employeeId: 1 });
 EmployeeSchema.index({ email: 1 });
 EmployeeSchema.index({ department: 1 });
@@ -235,28 +220,27 @@ EmployeeSchema.index({ manager: 1 });
 EmployeeSchema.index({ joiningDate: -1 });
 
 // Virtual for full name
-EmployeeSchema.virtual("fullName").get(function(this: IEmployee) {
+EmployeeSchema.virtual("fullName").get(function() {
   return `${this.firstName} ${this.lastName}`;
 });
 
-// Hash password before saving - FIXED VERSION
-EmployeeSchema.pre("save", async function(this: HydratedDocument<IEmployee>) {
-  if (!this.isModified("password") || !this.password) {
-    return;
+// ========== BCRYPT PASSWORD HASHING ==========
+EmployeeSchema.pre("save", async function(next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified("password")) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error: any) {
+    next(error);
   }
-
-  this.password = hashPassword(this.password);
 });
 
 // Compare password method
-EmployeeSchema.methods.comparePassword = async function(
-  this: IEmployee,
-  candidatePassword: string
-): Promise<boolean> {
-  if (!this.password) {
-    return false;
-  }
-  return verifyPassword(candidatePassword, this.password);
+EmployeeSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 export const Employee = mongoose.model<IEmployee>("Employee", EmployeeSchema);
