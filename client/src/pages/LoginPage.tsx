@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth, { type UserType } from '../hooks/useAuth';
 
@@ -68,6 +68,10 @@ function toUserType(data: LoginSuccessResponse): UserType | null {
 function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  useEffect(() => {
+    document.title = 'Login — HRMS';
+  }, []);
 
   const [formData, setFormData] = useState<FormData>({
     email: '',

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import useAuth from '../hooks/useAuth';
@@ -358,6 +358,10 @@ function EmployeesPage() {
   const { isHRManager } = useAuth();
   const { data: employees, isLoading, isError, error, refetch } =
     useEmployees();
+
+  useEffect(() => {
+    document.title = 'Employees — HRMS';
+  }, []);
 
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState<DepartmentFilter>(

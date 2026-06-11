@@ -1,5 +1,10 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+
+interface DashboardPageProps {
+  isLoading?: boolean;
+}
 
 type ActivityType =
   | 'employee'
@@ -175,6 +180,55 @@ interface QuickLinkCardProps {
   onClick: () => void;
 }
 
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded-lg bg-gray-200 ${className}`} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section className="rounded-xl bg-gradient-to-r from-blue-50 via-sky-50 to-blue-100 px-6 py-8">
+        <SkeletonBlock className="h-8 w-64 max-w-full" />
+        <SkeletonBlock className="mt-3 h-4 w-80 max-w-full" />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+          >
+            <SkeletonBlock className="h-4 w-24" />
+            <SkeletonBlock className="mt-4 h-10 w-16" />
+            <SkeletonBlock className="mt-3 h-3 w-28" />
+          </div>
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-5 py-4">
+          <SkeletonBlock className="h-5 w-36" />
+          <SkeletonBlock className="mt-2 h-4 w-56" />
+        </div>
+        <div className="space-y-4 p-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <SkeletonBlock key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <SkeletonBlock className="mb-3 h-6 w-32" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <SkeletonBlock key={index} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function QuickLinkCard({
   title,
   subtitle,
@@ -206,9 +260,13 @@ function QuickLinkCard({
   );
 }
 
-function DashboardPage() {
+function DashboardPage({ isLoading = false }: DashboardPageProps) {
   const { user, isHRManager } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'Dashboard — HRMS';
+  }, []);
 
   const displayName = user?.name ?? 'there';
   const pendingLeaves = 3;
@@ -216,6 +274,10 @@ function DashboardPage() {
   const handleAddEmployee = (): void => {
     window.alert('Opening add employee form');
   };
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

@@ -54,11 +54,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="flex h-screen">
       <NavigationProgress key={location.pathname} />
 
-      <aside className="fixed left-0 top-0 flex h-screen w-60 flex-col border-r border-slate-700 bg-slate-900">
+      <aside className="fixed left-0 top-0 flex h-screen w-14 flex-col border-r border-slate-700 bg-slate-900 md:w-60">
         <div className="p-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3 md:justify-start">
             <div className="h-8 w-8 shrink-0 rounded-md bg-blue-600" />
-            <span className="text-lg font-bold text-white">HRMS</span>
+            <span className="hidden text-lg font-bold text-white md:inline">HRMS</span>
           </div>
           <div className="mt-4 border-b border-slate-700" />
         </div>
@@ -72,16 +72,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 title={item.label}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-3 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors md:justify-start md:px-3 ${
                   active
                     ? 'bg-blue-600 text-white'
                     : 'bg-transparent text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
               >
                 <span aria-hidden="true">{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="hidden md:inline">{item.label}</span>
                 {item.badge !== undefined && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+                  <span className="ml-auto hidden h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white md:flex">
                     {item.badge}
                   </span>
                 )}
@@ -92,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         <div className="border-t border-slate-700 p-4">
           {user ? (
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 hidden items-center gap-3 md:flex">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
                 {user.name[0]?.toUpperCase() ?? '?'}
               </div>
@@ -121,7 +121,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
           ) : (
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 hidden items-center gap-3 md:flex">
               <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-700" />
               <div className="flex-1 space-y-2">
                 <div className="h-3.5 w-24 animate-pulse rounded bg-slate-700" />
@@ -134,17 +134,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-500"
+            className="flex w-full items-center justify-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-500 md:justify-start md:px-3"
           >
             <span aria-hidden="true">🚪</span>
-            <span>Logout</span>
+            <span className="hidden md:inline">Logout</span>
           </button>
 
-          <p className="mt-4 text-center text-[10px] text-gray-500">v1.0.0</p>
+          <p className="mt-4 hidden text-center text-[10px] text-gray-500 md:block">v1.0.0</p>
         </div>
       </aside>
 
-      <main className="ml-60 flex-1 overflow-y-auto bg-gray-50 p-6">
+      <main className="ml-14 flex-1 overflow-y-auto bg-gray-50 p-6 md:ml-60">
         <p className="mb-4 text-xs text-gray-400">
           Home <span className="mx-1">&gt;</span> {pageName}
         </p>

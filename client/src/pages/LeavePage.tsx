@@ -1,79 +1,21 @@
-import { useState } from 'react';
-
-type LeaveTab = 'my-leaves' | 'all-requests';
+import { useEffect } from 'react';
 
 function LeavePage() {
-  const [activeTab, setActiveTab] = useState<LeaveTab>('my-leaves');
+  useEffect(() => {
+    document.title = 'Leave Management — HRMS';
+  }, []);
 
   return (
     <>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <header>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Track and manage leave requests
-          </p>
-        </header>
-        <button
-          type="button"
-          className="shrink-0 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-        >
-          Apply for Leave
-        </button>
-      </div>
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Request and manage employee leave
+        </p>
+      </header>
 
-      <div className="mb-6 flex w-fit gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('my-leaves')}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'my-leaves'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          My Leaves
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('all-requests')}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'all-requests'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          All Requests
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 font-semibold text-gray-700">
-                Employee
-              </th>
-              <th className="px-4 py-3 font-semibold text-gray-700">
-                Leave Type
-              </th>
-              <th className="px-4 py-3 font-semibold text-gray-700">From</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">To</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
-              <th className="px-4 py-3 font-semibold text-gray-700">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="bg-white even:bg-gray-50/50">
-              <td
-                colSpan={6}
-                className="px-4 py-12 text-center text-gray-400"
-              >
-                No leave requests found
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="flex h-48 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+        <p className="text-sm text-gray-400">Leave management coming soon</p>
       </div>
     </>
   );
