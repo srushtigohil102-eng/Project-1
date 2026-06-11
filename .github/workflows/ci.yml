@@ -31,13 +31,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Backend Dependencies
-        working-directory: ./server
-        run: npm ci
-
-      - name: Install Frontend Dependencies
-        working-directory: ./client
-        run: npm ci
+      - name: Install Dependencies
+        run: npm install
 
       - name: Backend TypeScript Check
         working-directory: ./server
