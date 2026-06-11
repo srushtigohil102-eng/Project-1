@@ -27,4 +27,11 @@ export const MOCK_USERS: MockUser[] = [
     role: "employee",
     passwordHash: DEMO_PASSWORD_HASH,
   },
+  {
+    id: "emp-002",
+    name: "Sarah Employee",
+    email: "sarah@company.com",
+    role: "employee",
+    passwordHash: DEMO_PASSWORD_HASH,
+  },
 ];
