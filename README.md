@@ -1,4 +1,5 @@
 # Project-1
+
 <!-- Member C: Frontend Lead — workspace initialized -->
 # HRMS — Human Resource Management System
 
@@ -47,7 +48,7 @@ README.md
 
 | Member | Role | Branch |
 |--------|------|--------|
-| Member A | Backend Lead | mKarthika |
+| Member A | Backend Lead | Karthika |
 | Member B | Database and PDF | Himanshi |
 | Member C | Frontend Lead | Srushti |
 | Member D | DevOps Lead | Anoop |
