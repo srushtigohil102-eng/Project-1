@@ -2,7 +2,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "esnext",
-    "types": [],
+    "rootDir": "src",
+    "types": ["node"],
 
     "sourceMap": true,
     "declaration": true,
@@ -18,5 +19,6 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
-  }
+  },
+  "include": ["src/**/*"]
 }

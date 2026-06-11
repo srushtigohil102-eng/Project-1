@@ -1,33 +1,56 @@
-import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { MOCK_USERS } from "../data/users";
 
-export const register = async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+interface LoginBody {
+  email?: string;
+  password?: string;
+}
 
-  res.status(201).json({
-    message: "User Registered",
-    user: {
-      name,
-      email,
-      password: hashedPassword
+export const login = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body as LoginBody;
+
+    if (!email?.trim() || !password) {
+      res.status(400).json({ message: "Email and password are required" });
+      return;
     }
-  });
-};
 
-export const login = async (req: Request, res: Response) => {
-  const { email } = req.body;
+    const user = MOCK_USERS.find(
+      (entry) => entry.email.toLowerCase() === email.trim().toLowerCase()
+    );
 
-  const token = jwt.sign(
-    { email },
-    process.env.JWT_SECRET || "secretkey",
-    { expiresIn: "1h" }
-  );
+    if (!user) {
+      res.status(401).json({ message: "Invalid email or password" });
+      return;
+    }
 
-  res.json({
-    message: "Login Success",
-    token
-  });
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      res.status(401).json({ message: "Invalid email or password" });
+      return;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    res.status(200).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch {
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
 };
