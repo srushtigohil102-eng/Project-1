@@ -5,17 +5,6 @@
 
 ---
 
-## What is this project
-
-This is a full stack web application that helps companies 
-manage their employees, leaves, and payroll in one place.
-
-Two types of users can use this system:
-- **HR Manager** — can add employees, approve leaves, run payroll
-- **Employee** — can apply for leave and download their payslip
-
----
-
 ## Tech Stack
 
 | Part | Technology |
