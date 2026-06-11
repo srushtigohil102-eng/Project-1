@@ -12,7 +12,7 @@ export interface Employee {
 }
 
 function useEmployees() {
-  return useQuery({
+  return useQuery<Employee[], Error>({
     queryKey: ['employees'],
     queryFn: () => apiFetch<Employee[]>('/employees'),
   });

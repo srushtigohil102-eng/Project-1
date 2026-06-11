@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import type { UserType } from '../utils/authStorage';
 
 interface Props {
   children: ReactNode;
-  requiredRole?: string;
+  requiredRole?: UserType['role'];
 }
 
 function AccessDenied() {

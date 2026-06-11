@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import useAuth from '../hooks/useAuth';
@@ -116,7 +116,14 @@ function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value as DepartmentFilter)}
+      onChange={(e) => {
+        const nextValue = e.target.value;
+        if (
+          DEPARTMENT_OPTIONS.includes(nextValue as DepartmentFilter)
+        ) {
+          onChange(nextValue as DepartmentFilter);
+        }
+      }}
       className="w-full shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-52"
     >
       {DEPARTMENT_OPTIONS.map((option) => (
@@ -361,26 +368,33 @@ function EmployeesPage() {
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
 
-  useEffect(() => {
+  const handleSearchChange = useCallback((value: string): void => {
+    setSearch(value);
     setCurrentPage(1);
-  }, [search, department]);
+  }, []);
 
-  const handleClearFilters = (): void => {
+  const handleDepartmentChange = useCallback((value: DepartmentFilter): void => {
+    setDepartment(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleClearFilters = useCallback((): void => {
     setSearch('');
     setDepartment('All Departments');
-  };
+    setCurrentPage(1);
+  }, []);
 
-  const handleAddEmployee = (): void => {
+  const handleAddEmployee = useCallback((): void => {
     window.alert('Add Employee form coming soon');
-  };
+  }, []);
 
-  const handleEdit = (employee: Employee): void => {
+  const handleEdit = useCallback((employee: Employee): void => {
     window.alert(`Edit employee: ${employee.name}`);
-  };
+  }, []);
 
-  const handleDelete = (employee: Employee): void => {
+  const handleDelete = useCallback((employee: Employee): void => {
     window.alert(`Delete employee: ${employee.name}`);
-  };
+  }, []);
 
   const filteredEmployees = useMemo(() => {
     if (!employees) {
@@ -436,8 +450,8 @@ function EmployeesPage() {
 
       <div className="mb-6 flex flex-col gap-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <SearchInput value={search} onChange={setSearch} />
-          <DepartmentSelect value={department} onChange={setDepartment} />
+          <SearchInput value={search} onChange={handleSearchChange} />
+          <DepartmentSelect value={department} onChange={handleDepartmentChange} />
         </div>
 
         {hasActiveFilters && (

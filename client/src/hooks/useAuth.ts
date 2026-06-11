@@ -1,37 +1,23 @@
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  clearStoredAuth,
+  readStoredAuth,
+  writeStoredAuth,
+  type UserType,
+} from '../utils/authStorage';
+import { navigateTo, setNavigate } from '../utils/navigation';
 
-export interface UserType {
-  id: string;
-  name: string;
-  email: string;
-  role: 'employee' | 'hr_manager';
-}
-
-const TOKEN_KEY = 'hrms_token';
-const USER_KEY = 'hrms_user';
-
-function readStoredAuth(): { token: string | null; user: UserType | null } {
-  const storedToken = sessionStorage.getItem(TOKEN_KEY);
-  const storedUser = sessionStorage.getItem(USER_KEY);
-
-  if (!storedToken || !storedUser) {
-    return { token: null, user: null };
-  }
-
-  try {
-    const parsedUser = JSON.parse(storedUser) as UserType;
-    return { token: storedToken, user: parsedUser };
-  } catch {
-    return { token: null, user: null };
-  }
-}
+export type { UserType };
 
 interface AuthContextValue {
   token: string | null;
@@ -46,25 +32,29 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(
-    () => readStoredAuth().token,
-  );
-  const [user, setUser] = useState<UserType | null>(() => readStoredAuth().user);
+  const navigate = useNavigate();
+  const initialAuth = readStoredAuth();
+  const [token, setToken] = useState<string | null>(initialAuth.token);
+  const [user, setUser] = useState<UserType | null>(initialAuth.user);
 
-  const login = (newToken: string, newUser: UserType): void => {
-    sessionStorage.setItem(TOKEN_KEY, newToken);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(newUser));
+  useEffect(() => {
+    setNavigate((path) => {
+      navigate(path);
+    });
+  }, [navigate]);
+
+  const login = useCallback((newToken: string, newUser: UserType): void => {
+    writeStoredAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
-  };
+  }, []);
 
-  const logout = (): void => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
+  const logout = useCallback((): void => {
+    clearStoredAuth();
     setToken(null);
     setUser(null);
-    window.location.href = '/';
-  };
+    navigateTo('/');
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -76,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
     }),
-    [token, user],
+    [token, user, login, logout],
   );
 
   return createElement(AuthContext.Provider, { value }, children);

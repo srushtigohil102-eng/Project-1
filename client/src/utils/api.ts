@@ -1,6 +1,6 @@
+import { clearStoredAuth, TOKEN_KEY } from './authStorage';
+import { navigateTo } from './navigation';
 import { API_BASE_URL } from './config';
-const TOKEN_KEY = 'hrms_token';
-const USER_KEY = 'hrms_user';
 
 interface ApiErrorBody {
   message?: string;
@@ -25,9 +25,8 @@ async function apiFetch<T>(
   });
 
   if (response.status === 401) {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    window.location.href = '/';
+    clearStoredAuth();
+    navigateTo('/');
     throw new Error('Session expired. Please log in again.');
   }
 
@@ -42,6 +41,10 @@ async function apiFetch<T>(
     }
 
     throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;

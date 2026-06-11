@@ -7,6 +7,8 @@ import EmployeesPage from './pages/EmployeesPage';
 import LeavePage from './pages/LeavePage';
 import LoginPage from './pages/LoginPage';
 import PayrollPage from './pages/PayrollPage';
+import ReportsPage from './pages/ReportsPage';
+import SettingsPage from './pages/SettingsPage';
 
 function NotFoundPage() {
   return (
@@ -64,6 +66,26 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <PayrollPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute requiredRole="hr_manager">
+              <Layout>
+                <ReportsPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute requiredRole="hr_manager">
+              <Layout>
+                <SettingsPage />
               </Layout>
             </ProtectedRoute>
           }

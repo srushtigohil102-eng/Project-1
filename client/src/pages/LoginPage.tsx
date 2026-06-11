@@ -1,7 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth, { type UserType } from '../hooks/useAuth';
-import { API_BASE_URL } from '../utils/config';
 
 interface FormData {
   email: string;
@@ -25,35 +24,11 @@ interface LoginSuccessResponse {
 }
 
 interface LoginErrorResponse {
-  message: string;
+  message?: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOGIN_URL = `${API_BASE_URL}/auth/login`;
-
-// =============================================================================
-// MOCK LOGIN — remove this entire block when Member A's backend is ready.
-// Set MOCK_LOGIN_ENABLED to false (or delete the block) to use the real API.
-// Test credentials: hr@test.com / test123
-// =============================================================================
-const MOCK_LOGIN_ENABLED = false;
-
-function mockLogin(email: string, password: string): LoginSuccessResponse | null {
-  if (email === 'hr@test.com' && password === 'test123') {
-    return {
-      token: 'mock-jwt-token-hr-manager',
-      user: {
-        id: 'mock-hr-1',
-        name: 'Test HR Manager',
-        email: 'hr@test.com',
-        role: 'hr_manager',
-      },
-    };
-  }
-
-  return null;
-}
-// =============================================================================
+const LOGIN_URL = '/auth/login';
 
 function isUserRole(role: string): role is UserType['role'] {
   return role === 'employee' || role === 'hr_manager';
@@ -125,26 +100,6 @@ function LoginPage() {
     const { password } = formData;
 
     try {
-      if (MOCK_LOGIN_ENABLED) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-
-        const data = mockLogin(email, password);
-        if (!data) {
-          setErrors({ general: 'Invalid email or password' });
-          return;
-        }
-
-        const user = toUserType(data);
-        if (!user) {
-          setErrors({ general: 'Something went wrong. Please try again.' });
-          return;
-        }
-
-        login(data.token, user);
-        navigate('/dashboard');
-        return;
-      }
-
       const response = await fetch(LOGIN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +122,7 @@ function LoginPage() {
 
       if (response.status === 401) {
         const data = (await response.json()) as LoginErrorResponse;
-        setErrors({ general: data.message });
+        setErrors({ general: data.message ?? 'Invalid email or password' });
         return;
       }
 
@@ -287,13 +242,7 @@ function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
-          <p className="font-semibold">Demo accounts (password: Hrms@Dev2026!)</p>
-          <p className="mt-1">HR Manager — hr@company.com</p>
-          <p>Employee — employee@company.com</p>
-        </div>
-
-        <p className="mt-4 text-center text-xs text-gray-400">
+        <p className="mt-6 text-center text-xs text-gray-400">
           HR Management System v1.0
         </p>
       </div>

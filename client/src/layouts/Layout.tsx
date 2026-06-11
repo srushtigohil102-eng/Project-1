@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
@@ -36,26 +36,23 @@ const formatPageName = (pathname: string): string => {
 const formatRoleLabel = (role: 'hr_manager' | 'employee'): string =>
   role === 'hr_manager' ? 'HR Manager' : 'Employee';
 
+function NavigationProgress() {
+  return (
+    <div className="fixed left-0 right-0 top-0 z-50 h-0.5 animate-[nav-progress_500ms_ease-out_forwards] bg-blue-600" />
+  );
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, isHRManager, logout } = useAuth();
-  const [isNavigating, setIsNavigating] = useState(false);
 
   const navItems = isHRManager ? HR_MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
   const pageName = formatPageName(location.pathname);
   const isActive = (path: string): boolean => location.pathname === path;
 
-  useEffect(() => {
-    setIsNavigating(true);
-    const timer = setTimeout(() => setIsNavigating(false), 500);
-    return () => clearTimeout(timer);
-  }, [location.pathname]);
-
   return (
     <div className="flex h-screen">
-      {isNavigating && (
-        <div className="fixed left-0 right-0 top-0 z-50 h-0.5 bg-blue-600" />
-      )}
+      <NavigationProgress key={location.pathname} />
 
       <aside className="fixed left-0 top-0 flex h-screen w-60 flex-col border-r border-slate-700 bg-slate-900">
         <div className="p-4">
