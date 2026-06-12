@@ -21,7 +21,7 @@ interface JwtPayload {
 
 const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
 
-export function authenticate(
+export function verifyToken( 
   req: Request,
   res: Response,
   next: NextFunction
