@@ -1,0 +1,8 @@
+# Project-1
+node_modules/
+package-lock.json
+dist/
+.env
+.DS_Store
+.vscode/
+*.log
