@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import useAuth from '../hooks/useAuth';
-import useEmployees, { type Employee } from '../hooks/useEmployees';
+import useEmployees, {
+  useDeleteEmployee,
+  type Employee,
+} from '../hooks/useEmployees';
 
 const DEPARTMENT_OPTIONS = [
   'All Departments',
@@ -14,6 +17,8 @@ const DEPARTMENT_OPTIONS = [
 ] as const;
 
 type DepartmentFilter = (typeof DEPARTMENT_OPTIONS)[number];
+type SortField = 'name' | 'salary' | 'status' | null;
+type SortOrder = 'asc' | 'desc';
 
 const SKELETON_ROW_COUNT = 5;
 const PAGE_SIZE = 8;
@@ -193,7 +198,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-6 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+        className="mt-6 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
       >
         Try Again
       </button>
@@ -222,7 +227,7 @@ function EmptyState({ isHRManager, onAddEmployee }: EmptyStateProps) {
         <button
           type="button"
           onClick={onAddEmployee}
-          className="mt-6 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+          className="mt-6 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer"
         >
           Add your first employee
         </button>
@@ -236,6 +241,9 @@ interface EmployeeRowProps {
   isHRManager: boolean;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+  onViewDetails: (employee: Employee) => void;
+  isDeleting: boolean;
+  disableActions: boolean;
 }
 
 function EmployeeRow({
@@ -243,6 +251,9 @@ function EmployeeRow({
   isHRManager,
   onEdit,
   onDelete,
+  onViewDetails,
+  isDeleting,
+  disableActions,
 }: EmployeeRowProps) {
   return (
     <tr className="border-b border-gray-100 bg-white transition-colors even:bg-gray-50/40 hover:bg-blue-50/60">
@@ -250,7 +261,13 @@ function EmployeeRow({
         <div className="flex items-center gap-3">
           <Avatar name={employee.name} />
           <div className="min-w-0">
-            <p className="truncate font-medium text-gray-900">{employee.name}</p>
+            <button
+              type="button"
+              onClick={() => onViewDetails(employee)}
+              className="truncate font-medium text-gray-900 hover:text-blue-600 hover:underline text-left focus:outline-none cursor-pointer"
+            >
+              {employee.name}
+            </button>
             <p className="truncate text-sm text-gray-500">{employee.email}</p>
           </div>
         </div>
@@ -269,16 +286,18 @@ function EmployeeRow({
             <button
               type="button"
               onClick={() => onEdit(employee)}
-              className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              disabled={disableActions}
+              className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-blue-400 cursor-pointer"
             >
               Edit
             </button>
             <button
               type="button"
               onClick={() => onDelete(employee)}
-              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+              disabled={disableActions}
+              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
             >
-              Delete
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </td>
@@ -309,7 +328,7 @@ function PaginationBar({
   const isLastPage = currentPage === totalPages;
 
   return (
-    <div className="flex flex-col gap-4 border-t border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 border-t border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between bg-white">
       <p className="text-sm text-gray-600">
         Showing {startIndex + 1} to {endIndex} of {totalCount} employees
       </p>
@@ -319,7 +338,7 @@ function PaginationBar({
           type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={isFirstPage}
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           <span aria-hidden="true">←</span>
           Previous
@@ -330,7 +349,7 @@ function PaginationBar({
             key={page}
             type="button"
             onClick={() => onPageChange(page)}
-            className={`min-w-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-w-9 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
               page === currentPage
                 ? 'bg-blue-600 text-white'
                 : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -344,7 +363,7 @@ function PaginationBar({
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={isLastPage}
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           Next
           <span aria-hidden="true">→</span>
@@ -358,6 +377,7 @@ function EmployeesPage() {
   const { isHRManager } = useAuth();
   const { data: employees, isLoading, isError, error, refetch } =
     useEmployees();
+  const deleteMutation = useDeleteEmployee();
 
   useEffect(() => {
     document.title = 'Employees — HRMS';
@@ -368,6 +388,14 @@ function EmployeesPage() {
     'All Departments',
   );
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  // Slide-in drawer details state
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
@@ -397,7 +425,44 @@ function EmployeesPage() {
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
-    window.alert(`Delete employee: ${employee.name}`);
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${employee.name}?`,
+    );
+
+    if (confirmed) {
+      deleteMutation.mutate(employee.id, {
+        onSuccess: () => {
+          window.alert(`Employee "${employee.name}" successfully deleted.`);
+        },
+        onError: (err) => {
+          window.alert(`Failed to delete employee: ${err.message}`);
+        },
+      });
+    }
+  }, [deleteMutation]);
+
+  const handleViewDetails = useCallback((employee: Employee): void => {
+    setSelectedEmployee(employee);
+    setIsPanelOpen(true);
+  }, []);
+
+  const handleClosePanel = useCallback((): void => {
+    setIsPanelOpen(false);
+    // Let the animation finish before removing the details
+    setTimeout(() => {
+      setSelectedEmployee(null);
+    }, 300);
+  }, []);
+
+  const handleSort = useCallback((field: 'name' | 'salary' | 'status') => {
+    setSortField((prevField) => {
+      if (prevField === field) {
+        setSortOrder((prevOrder) => (prevOrder === 'asc' ? 'desc' : 'asc'));
+        return field;
+      }
+      setSortOrder('asc');
+      return field;
+    });
   }, []);
 
   const filteredEmployees = useMemo(() => {
@@ -421,11 +486,38 @@ function EmployeesPage() {
     });
   }, [employees, search, department]);
 
+  const sortedEmployees = useMemo(() => {
+    if (!filteredEmployees) {
+      return [];
+    }
+    if (!sortField) {
+      return filteredEmployees;
+    }
+
+    return [...filteredEmployees].sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredEmployees, sortField, sortOrder]);
+
   const totalCount = filteredEmployees.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const effectivePage = Math.min(currentPage, totalPages);
   const startIndex = (effectivePage - 1) * PAGE_SIZE;
-  const paginatedEmployees = filteredEmployees.slice(
+  const paginatedEmployees = sortedEmployees.slice(
     startIndex,
     startIndex + PAGE_SIZE,
   );
@@ -444,7 +536,7 @@ function EmployeesPage() {
           <button
             type="button"
             onClick={handleAddEmployee}
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer"
           >
             <PlusIcon />
             Add Employee
@@ -466,7 +558,7 @@ function EmployeesPage() {
             <button
               type="button"
               onClick={handleClearFilters}
-              className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+              className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 cursor-pointer"
             >
               Clear filters ✕
             </button>
@@ -487,8 +579,18 @@ function EmployeesPage() {
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Employee
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Employee
+                      {sortField === 'name' && (
+                        <span className="text-sm font-bold text-gray-500">
+                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                        </span>
+                      )}
+                    </div>
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
                     Department
@@ -496,11 +598,31 @@ function EmployeesPage() {
                   <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
                     Role
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Status
+                  <th
+                    onClick={() => handleSort('status')}
+                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Status
+                      {sortField === 'status' && (
+                        <span className="text-sm font-bold text-gray-500">
+                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Salary
+                  <th
+                    onClick={() => handleSort('salary')}
+                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      Salary
+                      {sortField === 'salary' && (
+                        <span className="text-sm font-bold text-gray-500">
+                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                        </span>
+                      )}
+                    </div>
                   </th>
                   {isHRManager && (
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
@@ -534,6 +656,12 @@ function EmployeesPage() {
                       isHRManager={isHRManager}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
+                      onViewDetails={handleViewDetails}
+                      isDeleting={
+                        deleteMutation.isPending &&
+                        deleteMutation.variables === employee.id
+                      }
+                      disableActions={deleteMutation.isPending}
                     />
                   ))}
               </tbody>
@@ -551,6 +679,153 @@ function EmployeesPage() {
           )}
         </div>
       )}
+
+      {/* Slide-in Detail Panel */}
+      <div
+        className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+          isPanelOpen && selectedEmployee
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={handleClosePanel}
+      >
+        <div
+          className={`relative h-full w-full max-w-md bg-white p-6 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+            isPanelOpen && selectedEmployee ? 'translate-x-0' : 'translate-x-full'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {selectedEmployee && (
+            <>
+              {/* Close Button & Title */}
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Employee Profile
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleClosePanel}
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors focus:outline-none cursor-pointer"
+                  aria-label="Close panel"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Detail Content */}
+              <div className="flex-1 overflow-y-auto py-6">
+                <div className="flex flex-col items-center text-center mb-8">
+                  {/* Large Custom Initials Avatar */}
+                  <div className="flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold bg-blue-600 text-white shadow-md border-4 border-white ring-4 ring-blue-100">
+                    {selectedEmployee.name
+                      ? selectedEmployee.name
+                          .trim()
+                          .split(/\s+/)
+                          .slice(0, 2)
+                          .map((w) => w[0].toUpperCase())
+                          .join('')
+                      : '?'}
+                  </div>
+                  <h3 className="mt-4 text-xl font-semibold text-gray-900">
+                    {selectedEmployee.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">{selectedEmployee.role}</p>
+                  <div className="mt-3">
+                    <StatusBadge status={selectedEmployee.status} />
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t border-gray-100 pt-6">
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Email Address
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-gray-900">
+                      {selectedEmployee.email}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Department
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-gray-900">
+                      {selectedEmployee.department}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Role Title
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-gray-900">
+                      {selectedEmployee.role}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Salary
+                    </span>
+                    <span className="mt-1 block text-sm font-semibold text-gray-900 text-lg">
+                      {formatSalary(selectedEmployee.salary)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Join Date
+                    </span>
+                    <span className="mt-1 block text-sm font-medium text-gray-900">
+                      {selectedEmployee.createdAt
+                        ? new Intl.DateTimeFormat('en-IN', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          }).format(new Date(selectedEmployee.createdAt))
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-gray-100 pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.alert(
+                      `Edit feature coming soon for ${selectedEmployee.name}`,
+                    );
+                  }}
+                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                >
+                  Edit Employee
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClosePanel}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </>
   );
 }
