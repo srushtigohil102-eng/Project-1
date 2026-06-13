@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApplyLeave } from '../hooks/useLeave';
 import { calculateLeaveDays } from '../utils/helpers';
+import { showSuccess, showError } from '../utils/toast';
 
 interface ApplyLeaveModalProps {
   isOpen: boolean;
@@ -58,16 +59,8 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
 
   const [formData, setFormData] = useState<FormData>(initialFormState);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      setFormData(initialFormState);
-      setErrors({});
-      setApiError(null);
-    }
-  }, [isOpen]);
+  // Form resets on mount when the parent uses conditional rendering.
 
   // Duration auto-calculation
   const duration = useMemo(() => {
@@ -93,7 +86,6 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setApiError(null);
 
     const todayStr = getTodayString();
     const newErrors: FormErrors = {};
@@ -137,10 +129,10 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
         reason: trimmedReason,
       });
 
-      window.alert('Leave request submitted successfully!');
+      showSuccess('Leave request submitted!');
       onClose();
     } catch (err) {
-      setApiError(`Failed to submit: ${(err as Error).message || 'Server error'}`);
+      showError(`Failed to submit: ${(err as Error).message || 'Server error'}`);
     }
   };
 
@@ -175,16 +167,6 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
             <XIcon className="h-5 w-5" />
           </button>
         </div>
-
-        {/* API Error Notification */}
-        {apiError && (
-          <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100 flex items-start gap-2">
-            <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{apiError}</span>
-          </div>
-        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

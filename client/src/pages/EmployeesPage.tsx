@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
+import ConfirmDialog from '../components/ConfirmDialog';
 import useAuth from '../hooks/useAuth';
 import useEmployees, {
   useDeleteEmployee,
   type Employee,
 } from '../hooks/useEmployees';
+import { showSuccess, showError } from '../utils/toast';
 
 const DEPARTMENT_OPTIONS = [
   'All Departments',
@@ -397,6 +399,16 @@ function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    employeeId: string | null;
+  }>({ isOpen: false, title: '', message: '', employeeId: null });
+
+  const deletingIdRef = useRef<string | null>(null);
+
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
 
@@ -425,21 +437,36 @@ function EmployeesPage() {
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${employee.name}?`,
-    );
+    setConfirmState({
+      isOpen: true,
+      title: 'Delete Employee',
+      message: `Are you sure you want to delete ${employee.name}? This action cannot be undone.`,
+      employeeId: employee.id,
+    });
+  }, []);
 
-    if (confirmed) {
-      deleteMutation.mutate(employee.id, {
-        onSuccess: () => {
-          window.alert(`Employee "${employee.name}" successfully deleted.`);
-        },
-        onError: (err) => {
-          window.alert(`Failed to delete employee: ${err.message}`);
-        },
-      });
-    }
-  }, [deleteMutation]);
+  const handleConfirmDelete = useCallback((): void => {
+    const id = confirmState.employeeId;
+    if (!id) return;
+
+    deletingIdRef.current = id;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        showSuccess('Employee deleted successfully');
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        deletingIdRef.current = null;
+      },
+      onError: () => {
+        showError('Failed to delete employee');
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        deletingIdRef.current = null;
+      },
+    });
+  }, [confirmState.employeeId, deleteMutation]);
+
+  const handleCancelDelete = useCallback((): void => {
+    setConfirmState((prev) => ({ ...prev, isOpen: false }));
+  }, []);
 
   const handleViewDetails = useCallback((employee: Employee): void => {
     setSelectedEmployee(employee);
@@ -679,6 +706,18 @@ function EmployeesPage() {
           )}
         </div>
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText="Delete"
+        confirmColor="red"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        isLoading={deleteMutation.isPending}
+      />
 
       {/* Slide-in Detail Panel */}
       <div

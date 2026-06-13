@@ -11,6 +11,7 @@ import Avatar from '../components/Avatar';
 import ApplyLeaveModal from '../components/ApplyLeaveModal';
 import RejectLeaveModal from '../components/RejectLeaveModal';
 import type { LeaveRequest } from '../services/apiService';
+import { showSuccess, showError } from '../utils/toast';
 
 // ==========================================
 // Custom Icons (SVGs) for Premium UI
@@ -157,9 +158,6 @@ function LeavePage() {
   const [managerTab, setManagerTab] = useState<'all' | 'pending' | 'processed'>('pending');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Action notifications/errors
-  const [actionError, setActionError] = useState<string | null>(null);
-
   // Reject modal state
   const [rejectModalState, setRejectModalState] = useState<{
     isOpen: boolean;
@@ -279,25 +277,6 @@ function LeavePage() {
           </button>
         )}
       </header>
-
-      {/* Mutation Error Notification */}
-      {actionError && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-red-50 p-4 text-sm text-red-700 border border-red-100">
-          <div className="flex items-center gap-2">
-            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{actionError}</span>
-          </div>
-          <button
-            type="button"
-            className="text-red-500 hover:text-red-700 font-semibold"
-            onClick={() => setActionError(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -571,11 +550,10 @@ function LeavePage() {
                               onClick={() => {
                                 approveMutation.mutate(leave.id, {
                                   onSuccess: () => {
-                                    window.alert('Leave approved.');
-                                    setActionError(null);
+                                    showSuccess('Leave approved successfully');
                                   },
-                                  onError: (err) => {
-                                    setActionError(`Approve failed: ${err.message}`);
+                                  onError: () => {
+                                    showError('Failed to approve leave');
                                   },
                                 });
                               }}

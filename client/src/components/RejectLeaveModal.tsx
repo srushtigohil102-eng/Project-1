@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRejectLeave } from '../hooks/useLeave';
+import { showSuccess, showError } from '../utils/toast';
 
 interface RejectLeaveModalProps {
   isOpen: boolean;
@@ -29,13 +30,13 @@ function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: strin
 function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }: RejectLeaveModalProps) {
   const rejectMutation = useRejectLeave();
   const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
 
   const handleClose = () => {
     if (!rejectMutation.isPending) {
       setReason('');
-      setError(null);
+      setValidationError(null);
       setTouched(false);
       onClose();
     }
@@ -45,18 +46,18 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
     setTouched(true);
 
     if (reason.trim().length < 5) {
-      setError('Rejection reason must be at least 5 characters.');
+      setValidationError('Rejection reason must be at least 5 characters.');
       return;
     }
 
-    setError(null);
+    setValidationError(null);
 
     try {
       await rejectMutation.mutateAsync({ id: leaveId, reason: reason.trim() });
-      window.alert('Leave request rejected.');
+      showSuccess('Leave rejected');
       handleClose();
-    } catch (err) {
-      setError(`Failed to reject: ${(err as Error).message || 'Server error'}`);
+    } catch {
+      showError('Failed to reject leave');
     }
   };
 
@@ -90,12 +91,12 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
             <p className="text-xs text-gray-500 mt-0.5">{leaveDates}</p>
           </div>
 
-          {error && (
+          {validationError && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100 flex items-start gap-2">
               <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>{error}</span>
+              <span>{validationError}</span>
             </div>
           )}
 
@@ -112,9 +113,9 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
                 setReason(e.target.value);
                 if (touched) {
                   if (e.target.value.trim().length >= 5) {
-                    setError(null);
+                    setValidationError(null);
                   } else if (e.target.value.trim().length > 0) {
-                    setError('Rejection reason must be at least 5 characters.');
+                    setValidationError('Rejection reason must be at least 5 characters.');
                   }
                 }
               }}
