@@ -34,6 +34,7 @@ export interface LeaveRequest {
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  rejectReason?: string;
 }
 
 export interface ApplyLeaveData {
@@ -112,9 +113,10 @@ export async function approveLeave(id: string): Promise<LeaveRequest> {
   });
 }
 
-export async function rejectLeave(id: string): Promise<LeaveRequest> {
+export async function rejectLeave(id: string, reason: string): Promise<LeaveRequest> {
   return apiFetch<LeaveRequest>(`/leave/${id}/reject`, {
     method: 'PUT',
+    body: JSON.stringify({ reason }),
   });
 }
 

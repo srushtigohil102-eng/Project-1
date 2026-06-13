@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
 import {
   useLeaves,
@@ -9,6 +9,8 @@ import { calculateLeaveDays, formatDate } from '../utils/helpers';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
 import ApplyLeaveModal from '../components/ApplyLeaveModal';
+import RejectLeaveModal from '../components/RejectLeaveModal';
+import type { LeaveRequest } from '../services/apiService';
 
 // ==========================================
 // Custom Icons (SVGs) for Premium UI
@@ -46,11 +48,43 @@ function XIcon({ className = 'h-5 w-5' }: { className?: string }) {
   );
 }
 
+function ChevronLeftIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
 function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
+  );
+}
+
+function CalendarDaysIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function TagIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }
@@ -95,6 +129,18 @@ function EmptyState({ message, submessage = 'No requests to display' }: EmptySta
 }
 
 // ==========================================
+// Helpers
+// ==========================================
+
+function isInCurrentMonth(dateStr: string): boolean {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime()) && date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+}
+
+// ==========================================
 // Main Component
 // ==========================================
 
@@ -114,19 +160,24 @@ function LeavePage() {
   // Action notifications/errors
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Reject modal state
+  const [rejectModalState, setRejectModalState] = useState<{
+    isOpen: boolean;
+    leaveId: string;
+    employeeName: string;
+    leaveDates: string;
+  }>({ isOpen: false, leaveId: '', employeeName: '', leaveDates: '' });
+
+  // Detail panel state
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
+
   // Update Page Title
   useEffect(() => {
     document.title = isHRManager ? 'Leave Management — HRMS' : 'My Leave Requests — HRMS';
   }, [isHRManager]);
 
-  // Handle mutation error side-effects
-  useEffect(() => {
-    if (approveMutation.error) {
-      setActionError(`Approve failed: ${approveMutation.error.message}`);
-    } else if (rejectMutation.error) {
-      setActionError(`Reject failed: ${rejectMutation.error.message}`);
-    }
-  }, [approveMutation.error, rejectMutation.error]);
+
 
   // Stats Calculations
   const employeeStats = useMemo(() => {
@@ -139,10 +190,11 @@ function LeavePage() {
   }, [leaves, user?.id]);
 
   const managerStats = useMemo(() => {
-    const total = leaves.length;
-    const approved = leaves.filter((l) => l.status === 'approved').length;
-    const pending = leaves.filter((l) => l.status === 'pending').length;
-    const rejected = leaves.filter((l) => l.status === 'rejected').length;
+    const thisMonthLeaves = leaves.filter((l) => isInCurrentMonth(l.createdAt));
+    const total = thisMonthLeaves.length;
+    const approved = thisMonthLeaves.filter((l) => l.status === 'approved').length;
+    const pending = thisMonthLeaves.filter((l) => l.status === 'pending').length;
+    const rejected = thisMonthLeaves.filter((l) => l.status === 'rejected').length;
     return { total, approved, pending, rejected };
   }, [leaves]);
 
@@ -174,7 +226,31 @@ function LeavePage() {
     }
   }, [displayedLeaves, isHRManager, activeTab, managerTab]);
 
+  // Detail panel handlers
+  const handleRowClick = useCallback((leave: LeaveRequest): void => {
+    setSelectedLeave(leave);
+    setIsDetailPanelOpen(true);
+  }, []);
 
+  const handleClosePanel = useCallback((): void => {
+    setIsDetailPanelOpen(false);
+    setTimeout(() => { setSelectedLeave(null); }, 300);
+  }, []);
+
+  // Reject modal open
+  const openRejectModal = useCallback((leave: LeaveRequest): void => {
+    const dateRange = `${formatDate(leave.fromDate)} - ${formatDate(leave.toDate)}`;
+    setRejectModalState({
+      isOpen: true,
+      leaveId: leave.id,
+      employeeName: leave.employeeName,
+      leaveDates: dateRange,
+    });
+  }, []);
+
+  const closeRejectModal = useCallback((): void => {
+    setRejectModalState((prev) => ({ ...prev, isOpen: false }));
+  }, []);
 
   const isMutatingAny = approveMutation.isPending || rejectMutation.isPending;
 
@@ -232,7 +308,7 @@ function LeavePage() {
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              {isHRManager ? 'Total Requests' : 'Total Leaves Taken'}
+              {isHRManager ? 'Total Requests This Month' : 'Total Leaves Taken'}
             </p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
               {isHRManager ? managerStats.total : employeeStats.total}
@@ -246,7 +322,9 @@ function LeavePage() {
             <CheckIcon className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Approved</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {isHRManager ? 'Approved This Month' : 'Approved'}
+            </p>
             <p className="text-2xl font-bold text-green-600 mt-1">
               {isHRManager ? managerStats.approved : employeeStats.approved}
             </p>
@@ -259,7 +337,9 @@ function LeavePage() {
             <ClockIcon className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {isHRManager ? 'Pending' : 'Pending'}
+            </p>
             <p className="text-2xl font-bold text-amber-600 mt-1">
               {isHRManager ? managerStats.pending : employeeStats.pending}
             </p>
@@ -272,7 +352,9 @@ function LeavePage() {
             <XIcon className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Rejected</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {isHRManager ? 'Rejected This Month' : 'Rejected'}
+            </p>
             <p className="text-2xl font-bold text-red-600 mt-1">
               {isHRManager ? managerStats.rejected : employeeStats.rejected}
             </p>
@@ -444,11 +526,15 @@ function LeavePage() {
               filteredLeaves.map((leave) => {
                 if (isHRManager) {
                   const isApproving = approveMutation.isPending && approveMutation.variables === leave.id;
-                  const isRejecting = rejectMutation.isPending && rejectMutation.variables === leave.id;
+                  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === leave.id;
                   const isPending = leave.status === 'pending';
 
                   return (
-                    <tr key={leave.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={leave.id}
+                      onClick={() => handleRowClick(leave)}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <Avatar name={leave.employeeName} size="md" />
@@ -476,27 +562,49 @@ function LeavePage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={leave.status} />
                       </td>
-                      <td className="px-6 py-4 text-sm whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!isPending || isMutatingAny}
-                            onClick={() => approveMutation.mutate(leave.id)}
-                            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            {isApproving && <SpinnerIcon className="h-3 w-3 animate-spin text-emerald-700" />}
-                            {isApproving ? 'Approving...' : 'Approve'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!isPending || isMutatingAny}
-                            onClick={() => rejectMutation.mutate(leave.id)}
-                            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            {isRejecting && <SpinnerIcon className="h-3 w-3 animate-spin text-rose-700" />}
-                            {isRejecting ? 'Rejecting...' : 'Reject'}
-                          </button>
-                        </div>
+                      <td className="px-6 py-4 text-sm whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {isPending ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={isMutatingAny}
+                              onClick={() => {
+                                approveMutation.mutate(leave.id, {
+                                  onSuccess: () => {
+                                    window.alert('Leave approved.');
+                                    setActionError(null);
+                                  },
+                                  onError: (err) => {
+                                    setActionError(`Approve failed: ${err.message}`);
+                                  },
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {isApproving && <SpinnerIcon className="h-3 w-3 animate-spin text-emerald-700" />}
+                              {isApproving ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isMutatingAny}
+                              onClick={() => openRejectModal(leave)}
+                              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {isRejecting && <SpinnerIcon className="h-3 w-3 animate-spin text-rose-700" />}
+                              {isRejecting ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        ) : leave.status === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                            Approved
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                            Rejected
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -538,6 +646,151 @@ function LeavePage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Modal - Reject Leave (HR Manager View) */}
+      <RejectLeaveModal
+        isOpen={rejectModalState.isOpen}
+        onClose={closeRejectModal}
+        leaveId={rejectModalState.leaveId}
+        employeeName={rejectModalState.employeeName}
+        leaveDates={rejectModalState.leaveDates}
+      />
+
+      {/* Slide-in Detail Panel */}
+      <div
+        className={`fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+          isDetailPanelOpen && selectedLeave ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={handleClosePanel}
+      >
+        <div
+          className={`relative h-full w-full max-w-md bg-white p-6 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+            isDetailPanelOpen && selectedLeave ? 'translate-x-0' : 'translate-x-full'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {selectedLeave && (
+            <>
+              {/* Panel Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 shrink-0">
+                <h3 className="text-lg font-bold text-gray-900">Leave Details</h3>
+                <button
+                  type="button"
+                  onClick={handleClosePanel}
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto mt-6 space-y-6">
+                {/* Employee Info */}
+                <div className="flex items-center gap-4">
+                  <Avatar name={selectedLeave.employeeName} size="lg" />
+                  <div>
+                    <p className="text-base font-bold text-gray-900">{selectedLeave.employeeName}</p>
+                    <p className="text-sm text-gray-500">ID: {selectedLeave.employeeId}</p>
+                  </div>
+                </div>
+
+                {/* Leave Type */}
+                <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-4 border border-gray-100">
+                  <div className="rounded-lg bg-blue-50 p-2.5 text-blue-600">
+                    <TagIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</p>
+                    <p className="text-sm font-bold text-gray-900 mt-0.5">{selectedLeave.leaveType}</p>
+                  </div>
+                </div>
+
+                {/* Date Range */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-4 border border-gray-100">
+                    <div className="rounded-lg bg-indigo-50 p-2.5 text-indigo-600">
+                      <CalendarDaysIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">From</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.fromDate)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-4 border border-gray-100">
+                    <div className="rounded-lg bg-indigo-50 p-2.5 text-indigo-600">
+                      <CalendarDaysIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">To</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.toDate)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <div className="flex items-center gap-3 rounded-lg bg-emerald-50 p-4 border border-emerald-100">
+                  <div className="rounded-lg bg-emerald-100 p-2.5 text-emerald-700">
+                    <ClockIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Duration</p>
+                    <p className="text-sm font-bold text-emerald-800 mt-0.5">
+                      {calculateLeaveDays(selectedLeave.fromDate, selectedLeave.toDate)} working day{calculateLeaveDays(selectedLeave.fromDate, selectedLeave.toDate) !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Reason for Leave</p>
+                  <div className="rounded-lg bg-gray-50 p-4 border border-gray-100">
+                    <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedLeave.reason}</p>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4 border border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</p>
+                  <StatusBadge status={selectedLeave.status} />
+                </div>
+
+                {/* Applied On */}
+                <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-4 border border-gray-100">
+                  <div className="rounded-lg bg-purple-50 p-2.5 text-purple-600">
+                    <InfoIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Applied On</p>
+                    <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.createdAt)}</p>
+                  </div>
+                </div>
+
+                {/* Rejection Reason (if rejected) */}
+                {selectedLeave.status === 'rejected' && selectedLeave.rejectReason && (
+                  <div>
+                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">Rejection Reason</p>
+                    <div className="rounded-lg bg-red-50 p-4 border border-red-100">
+                      <p className="text-sm text-red-800 leading-relaxed whitespace-pre-wrap">{selectedLeave.rejectReason}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Close Button */}
+              <div className="pt-4 border-t border-gray-100 shrink-0 mt-6">
+                <button
+                  type="button"
+                  onClick={handleClosePanel}
+                  className="flex items-center justify-center gap-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                  Close
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </>
   );
 }

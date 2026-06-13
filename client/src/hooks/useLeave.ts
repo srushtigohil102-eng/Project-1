@@ -47,14 +47,19 @@ export function useApproveLeave() {
   });
 }
 
+export interface RejectLeaveData {
+  id: string;
+  reason: string;
+}
+
 /**
- * Hook to reject a leave request by ID
+ * Hook to reject a leave request by ID with a reason
  */
 export function useRejectLeave() {
   const queryClient = useQueryClient();
 
-  return useMutation<LeaveRequest, Error, string>({
-    mutationFn: (id: string) => rejectLeave(id),
+  return useMutation<LeaveRequest, Error, RejectLeaveData>({
+    mutationFn: ({ id, reason }: RejectLeaveData) => rejectLeave(id, reason),
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ['leaves'] });
       void queryClient.invalidateQueries({ queryKey: ['leaves', data.id] });
