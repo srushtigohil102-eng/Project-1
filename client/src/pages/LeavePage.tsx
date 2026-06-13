@@ -2,13 +2,13 @@ import { useEffect, useState, useMemo } from 'react';
 import useAuth from '../hooks/useAuth';
 import {
   useLeaves,
-  useApplyLeave,
   useApproveLeave,
   useRejectLeave,
 } from '../hooks/useLeave';
 import { calculateLeaveDays, formatDate } from '../utils/helpers';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
+import ApplyLeaveModal from '../components/ApplyLeaveModal';
 
 // ==========================================
 // Custom Icons (SVGs) for Premium UI
@@ -103,7 +103,6 @@ function LeavePage() {
   
   // Queries & Mutations
   const { data: leaves = [], isLoading, error, refetch } = useLeaves();
-  const applyLeaveMutation = useApplyLeave();
   const approveMutation = useApproveLeave();
   const rejectMutation = useRejectLeave();
 
@@ -111,13 +110,6 @@ function LeavePage() {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved'>('all');
   const [managerTab, setManagerTab] = useState<'all' | 'pending' | 'processed'>('pending');
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Leave Form state
-  const [leaveType, setLeaveType] = useState('Casual Leave');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [reason, setReason] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
   
   // Action notifications/errors
   const [actionError, setActionError] = useState<string | null>(null);
@@ -182,38 +174,7 @@ function LeavePage() {
     }
   }, [displayedLeaves, isHRManager, activeTab, managerTab]);
 
-  // Handle Form Submission (Apply for Leave)
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
 
-    if (!fromDate || !toDate || !reason.trim()) {
-      setFormError('Please fill out all fields.');
-      return;
-    }
-
-    if (new Date(fromDate) > new Date(toDate)) {
-      setFormError('From Date cannot be after To Date.');
-      return;
-    }
-
-    try {
-      await applyLeaveMutation.mutateAsync({
-        leaveType,
-        fromDate,
-        toDate,
-        reason,
-      });
-      // Reset state and close modal
-      setLeaveType('Casual Leave');
-      setFromDate('');
-      setToDate('');
-      setReason('');
-      setIsModalOpen(false);
-    } catch (err) {
-      setFormError((err as Error).message || 'Failed to submit leave request.');
-    }
-  };
 
   const isMutatingAny = approveMutation.isPending || rejectMutation.isPending;
 
@@ -573,122 +534,10 @@ function LeavePage() {
       </div>
 
       {/* Modal - Apply for Leave (Employee View only) */}
-      {!isHRManager && isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-gray-500/40 backdrop-blur-xs transition-opacity duration-300"
-            onClick={() => setIsModalOpen(false)}
-          />
-          
-          {/* Modal Card */}
-          <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white p-6 shadow-xl border border-gray-100 transition-all">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">Apply for Leave</h3>
-              <button
-                type="button"
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
-                onClick={() => setIsModalOpen(false)}
-              >
-                <XIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-              {formError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100 flex items-start gap-2">
-                  <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="leaveType" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Leave Type
-                </label>
-                <select
-                  id="leaveType"
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                >
-                  <option value="Casual Leave">Casual Leave</option>
-                  <option value="Sick Leave">Sick Leave</option>
-                  <option value="Earned Leave">Earned Leave</option>
-                  <option value="Maternity Leave">Maternity Leave</option>
-                  <option value="Paternity Leave">Paternity Leave</option>
-                  <option value="Unpaid Leave">Unpaid Leave</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">
-                    From Date
-                  </label>
-                  <input
-                    type="date"
-                    id="fromDate"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="toDate" className="block text-sm font-semibold text-gray-700 mb-1">
-                    To Date
-                  </label>
-                  <input
-                    type="date"
-                    id="toDate"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="reason" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Reason for Leave
-                </label>
-                <textarea
-                  id="reason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  rows={3}
-                  required
-                  placeholder="Please explain the reason for your leave request..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:border-emerald-500 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={applyLeaveMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={applyLeaveMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {applyLeaveMutation.isPending && <SpinnerIcon className="h-4 w-4 animate-spin text-white" />}
-                  {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ApplyLeaveModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </>
   );
 }
