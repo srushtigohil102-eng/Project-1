@@ -36,7 +36,7 @@ export function useRunPayroll() {
  * to allow triggering on-demand via the refetch function.
  */
 export function useDownloadPayslip(id: string) {
-  return useQuery<any, Error>({
+  return useQuery<unknown, Error>({
     queryKey: ['payroll', id, 'download'],
     queryFn: () => downloadPayslip(id),
     enabled: false,

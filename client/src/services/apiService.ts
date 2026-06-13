@@ -130,8 +130,8 @@ export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]>
   return apiFetch<PayrollRecord[]>(`/payroll/${id}`);
 }
 
-export async function downloadPayslip(id: string): Promise<any> {
-  return apiFetch<any>(`/payroll/${id}/download`);
+export async function downloadPayslip(id: string): Promise<unknown> {
+  return apiFetch<unknown>(`/payroll/${id}/download`);
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {
