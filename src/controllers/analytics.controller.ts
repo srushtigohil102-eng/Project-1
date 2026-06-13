@@ -12,7 +12,6 @@ export const getEmployeesWithDetails = async (_req: Request, res: Response): Pro
           status: "Active"
         }
       },
-
       {
         $lookup: {
           from: "departments",
@@ -182,13 +181,16 @@ export const getDepartmentHierarchy = async (_req: Request, res: Response): Prom
 // Get complete org chart with manager hierarchy
 export const getOrgChart = async (_req: Request, res: Response): Promise<void> => {
   try {
+    // First, get all employees
     const employees = await Employee.find({ isActive: true })
       .select("_id employeeId firstName lastName designation manager")
       .lean();
     
+    // Build hierarchy map
     const employeeMap = new Map();
     const managers = new Set();
     
+    // Create map of all employees
     employees.forEach(emp => {
       employeeMap.set(emp._id.toString(), {
         _id: emp._id,
@@ -201,6 +203,7 @@ export const getOrgChart = async (_req: Request, res: Response): Promise<void> =
       });
     });
     
+    // Build tree structure
     employees.forEach(emp => {
       if (emp.manager) {
         const managerId = emp.manager.toString();
@@ -211,10 +214,11 @@ export const getOrgChart = async (_req: Request, res: Response): Promise<void> =
       }
     });
     
+    // Get top-level employees (those without managers or not reporting to anyone)
     const orgChart = employees
       .filter(emp => !emp.manager || !managers.has(emp._id.toString()))
       .map(emp => employeeMap.get(emp._id.toString()))
-      .filter(emp => emp);
+      .filter(emp => emp); // Remove undefined
     
     res.status(200).json({
       success: true,
@@ -236,18 +240,22 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
     
+    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid employee ID" });
       return;
     }
     
     const result = await Employee.aggregate([
+      // Match specific employee
       {
         $match: {
           _id: new mongoose.Types.ObjectId(id),
           isActive: true
         }
       },
+      
+      // Lookup department
       {
         $lookup: {
           from: "departments",
@@ -262,6 +270,8 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           preserveNullAndEmptyArrays: true
         }
       },
+      
+      // Lookup manager
       {
         $lookup: {
           from: "employees",
@@ -276,6 +286,8 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           preserveNullAndEmptyArrays: true
         }
       },
+      
+      // Lookup team members (employees reporting to this employee)
       {
         $lookup: {
           from: "employees",
@@ -284,6 +296,8 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           as: "team"
         }
       },
+      
+      // Project final structure
       {
         $project: {
           _id: 1,
@@ -295,17 +309,20 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           phoneNumber: 1,
           designation: 1,
           salary: 1,
+          
           department: {
             _id: "$department._id",
             name: "$department.name",
             code: "$department.code"
           },
+          
           manager: {
             _id: "$manager._id",
             employeeId: "$manager.employeeId",
             fullName: { $concat: ["$manager.firstName", " ", "$manager.lastName"] },
             designation: "$manager.designation"
           },
+          
           team: {
             $map: {
               input: "$team",
@@ -316,13 +333,16 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
                 firstName: "$$member.firstName",
                 lastName: "$$member.lastName",
                 fullName: { $concat: ["$$member.firstName", " ", "$$member.lastName"] },
-                designation: "$$member.designation"
+                designation: "$$member.designation",
+                joiningDate: "$$member.joiningDate"
               }
             }
           },
+          
           teamCount: { $size: "$team" },
           status: 1,
-          joiningDate: 1
+          joiningDate: 1,
+          createdAt: 1
         }
       }
     ]);
