@@ -7,6 +7,8 @@ import employeeRoutes from "./routes/employee.routes";
 import departmentRoutes from "./routes/department.routes";
 import leaveRoutes from "./routes/leave.routes";
 import payrollRoutes from "./routes/payroll.routes";
+import analyticsRoutes from "./routes/analytics.routes";
+
 
 dotenv.config();
 
@@ -22,6 +24,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/analytics", analyticsRoutes);
+
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({
