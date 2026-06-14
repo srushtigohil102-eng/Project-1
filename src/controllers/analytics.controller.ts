@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Employee } from "../models/Employee";
 import mongoose from "mongoose";
 
+
 // Get employees with department and manager details using aggregation
 export const getEmployeesWithDetails = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -181,16 +182,13 @@ export const getDepartmentHierarchy = async (_req: Request, res: Response): Prom
 // Get complete org chart with manager hierarchy
 export const getOrgChart = async (_req: Request, res: Response): Promise<void> => {
   try {
-    // First, get all employees
     const employees = await Employee.find({ isActive: true })
       .select("_id employeeId firstName lastName designation manager")
       .lean();
     
-    // Build hierarchy map
     const employeeMap = new Map();
     const managers = new Set();
     
-    // Create map of all employees
     employees.forEach(emp => {
       employeeMap.set(emp._id.toString(), {
         _id: emp._id,
@@ -203,7 +201,6 @@ export const getOrgChart = async (_req: Request, res: Response): Promise<void> =
       });
     });
     
-    // Build tree structure
     employees.forEach(emp => {
       if (emp.manager) {
         const managerId = emp.manager.toString();
@@ -214,11 +211,10 @@ export const getOrgChart = async (_req: Request, res: Response): Promise<void> =
       }
     });
     
-    // Get top-level employees (those without managers or not reporting to anyone)
     const orgChart = employees
       .filter(emp => !emp.manager || !managers.has(emp._id.toString()))
       .map(emp => employeeMap.get(emp._id.toString()))
-      .filter(emp => emp); // Remove undefined
+      .filter(emp => emp);
     
     res.status(200).json({
       success: true,
@@ -240,22 +236,18 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
     
-    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid employee ID" });
       return;
     }
     
     const result = await Employee.aggregate([
-      // Match specific employee
       {
         $match: {
           _id: new mongoose.Types.ObjectId(id),
           isActive: true
         }
       },
-      
-      // Lookup department
       {
         $lookup: {
           from: "departments",
@@ -270,8 +262,6 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           preserveNullAndEmptyArrays: true
         }
       },
-      
-      // Lookup manager
       {
         $lookup: {
           from: "employees",
@@ -286,8 +276,6 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           preserveNullAndEmptyArrays: true
         }
       },
-      
-      // Lookup team members (employees reporting to this employee)
       {
         $lookup: {
           from: "employees",
@@ -296,8 +284,6 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           as: "team"
         }
       },
-      
-      // Project final structure
       {
         $project: {
           _id: 1,
@@ -309,20 +295,17 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
           phoneNumber: 1,
           designation: 1,
           salary: 1,
-          
           department: {
             _id: "$department._id",
             name: "$department.name",
             code: "$department.code"
           },
-          
           manager: {
             _id: "$manager._id",
             employeeId: "$manager.employeeId",
             fullName: { $concat: ["$manager.firstName", " ", "$manager.lastName"] },
             designation: "$manager.designation"
           },
-          
           team: {
             $map: {
               input: "$team",
@@ -338,7 +321,6 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
               }
             }
           },
-          
           teamCount: { $size: "$team" },
           status: 1,
           joiningDate: 1,
@@ -365,3 +347,171 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
     });
   }
 };
+
+//  DEPARTMENT REPORTS 
+
+// Get department reports: total employees, average salary, min/max salary
+export const getDepartmentReports = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await Employee.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: "Active"
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$dept._id",
+          departmentName: { $first: "$dept.name" },
+          departmentCode: { $first: "$dept.code" },
+          totalEmployees: { $sum: 1 },
+          totalSalary: { $sum: "$salary" },
+          averageSalary: { $avg: "$salary" },
+          minSalary: { $min: "$salary" },
+          maxSalary: { $max: "$salary" },
+          employees: {
+            $push: {
+              _id: "$_id",
+              employeeId: "$employeeId",
+              fullName: { $concat: ["$firstName", " ", "$lastName"] },
+              designation: "$designation",
+              salary: "$salary"
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          averageSalary: { $round: ["$averageSalary", 2] }
+        }
+      },
+      {
+        $sort: { departmentName: 1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            _id: "$_id",
+            name: "$departmentName",
+            code: "$departmentCode"
+          },
+          totalEmployees: 1,
+          totalSalaryBudget: "$totalSalary",
+          averageSalary: 1,
+          minSalary: 1,
+          maxSalary: 1,
+          employees: 1
+        }
+      }
+    ]);
+    
+    const companyStats = {
+      totalEmployees: result.reduce((sum, dept) => sum + dept.totalEmployees, 0),
+      totalSalaryBudget: result.reduce((sum, dept) => sum + dept.totalSalaryBudget, 0),
+      overallAverageSalary: result.length > 0 
+        ? (result.reduce((sum, dept) => sum + dept.averageSalary, 0) / result.length).toFixed(2)
+        : 0,
+      departmentsCount: result.length
+    };
+    
+    res.status(200).json({
+      success: true,
+      companyStats,
+      departments: result
+    });
+  } catch (error) {
+    console.error("Department reports error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch department reports", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+// Get department-wise employee distribution
+export const getDepartmentDistribution = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await Employee.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: "Active"
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$dept._id",
+          name: { $first: "$dept.name" },
+          code: { $first: "$dept.code" },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            id: "$_id",
+            name: 1,
+            code: 1
+          },
+          employeeCount: "$count"
+        }
+      }
+    ]);
+    
+    const totalEmployees = result.reduce((sum, dept) => sum + dept.employeeCount, 0);
+    
+    const departmentsWithPercentage = result.map(dept => ({
+      ...dept,
+      percentage: totalEmployees > 0 ? ((dept.employeeCount / totalEmployees) * 100).toFixed(2) : 0
+    }));
+    
+    res.status(200).json({
+      success: true,
+      totalEmployees,
+      departments: departmentsWithPercentage
+    });
+  } catch (error) {
+    console.error("Department distribution error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch department distribution", 
+      error: (error as Error).message 
+    });
+  }
+};
+
