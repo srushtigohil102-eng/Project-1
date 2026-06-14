@@ -18,9 +18,17 @@ export interface Employee {
 export interface CreateEmployeeData {
   name: string;
   email: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
   department: string;
   role: string;
-  salary: number;
+  employmentType: string;
+  reportingManager?: string;
+  startDate: string;
+  basicSalary: number;
+  allowances: number;
+  systemRole: string;
   password?: string;
 }
 

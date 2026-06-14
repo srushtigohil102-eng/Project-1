@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCreateEmployee } from '../hooks/useEmployees';
+import { showSuccess } from '../utils/toast';
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
@@ -68,6 +69,23 @@ function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: strin
   );
 }
 
+function EyeIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+}
+
+function EyeOffIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  );
+}
+
 const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const;
 const DEPARTMENT_OPTIONS = ['Engineering', 'Design', 'HR', 'Finance', 'Marketing', 'Operations', 'Sales'] as const;
 const EMPLOYMENT_TYPES = ['Full Time', 'Part Time', 'Contract', 'Intern'] as const;
@@ -90,12 +108,45 @@ const initialFormState: FormData = {
   confirmPassword: '',
 };
 
+function formatIndianCurrency(amount: number): string {
+  const numStr = Math.round(amount).toString();
+  if (numStr.length <= 3) return numStr;
+  const lastThree = numStr.slice(-3);
+  const rest = numStr.slice(0, -3);
+  const groups: string[] = [];
+  let remaining = rest;
+  while (remaining.length > 0) {
+    if (remaining.length <= 2) {
+      groups.unshift(remaining);
+      break;
+    }
+    groups.unshift(remaining.slice(-2));
+    remaining = remaining.slice(0, -2);
+  }
+  return groups.join(',') + ',' + lastThree;
+}
+
+function getPasswordStrength(password: string): { label: string; barColor: string; barWidth: string; textColor: string } {
+  if (!password) return { label: '', barColor: '', barWidth: 'w-0', textColor: '' };
+  if (password.length < 8) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
+  let types = 0;
+  if (/[a-z]/.test(password)) types++;
+  if (/[A-Z]/.test(password)) types++;
+  if (/[0-9]/.test(password)) types++;
+  if (/[^a-zA-Z0-9]/.test(password)) types++;
+  if (types <= 1) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
+  if (types === 2) return { label: 'Medium', barColor: 'bg-amber-500', barWidth: 'w-2/4', textColor: 'text-amber-600' };
+  return { label: 'Strong', barColor: 'bg-green-500', barWidth: 'w-3/4', textColor: 'text-green-600' };
+}
+
 function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps) {
   const createEmployeeMutation = useCreateEmployee();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormState);
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // State resets on mount when the parent uses conditional rendering.
   // If the parent keeps the component mounted, the form preserves data across opens.
@@ -213,16 +264,25 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
       await createEmployeeMutation.mutateAsync({
         name: formData.fullName.trim(),
         email: formData.email.trim(),
+        phone: formData.phone || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        gender: formData.gender || undefined,
         department: formData.department,
         role: formData.jobTitle.trim(),
-        salary: Number(formData.basicSalary),
+        employmentType: formData.employmentType,
+        reportingManager: formData.reportingManager || undefined,
+        startDate: formData.startDate,
+        basicSalary: Number(formData.basicSalary),
+        allowances: Number(formData.allowances) || 0,
+        systemRole: formData.userRole,
         password: formData.tempPassword,
       });
 
       onClose();
+      showSuccess('Employee added successfully!');
       onSuccess();
     } catch (err) {
-      setApiError(`Failed to add employee: ${(err as Error).message || 'Server error'}`);
+      setApiError((err as Error).message || 'Failed to add employee');
     }
   };
 
@@ -573,10 +633,12 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         {/* Step 3: Salary and System Access */}
         {step === 3 && (
           <div className="space-y-4">
+            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Compensation Details</h4>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="basicSalary" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Basic Salary <span className="text-red-500">*</span>
+                  Basic Salary (Monthly) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
@@ -584,7 +646,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                     type="number"
                     id="basicSalary"
                     placeholder="50000"
-                    min={0}
+                    min={1}
                     value={formData.basicSalary}
                     onChange={(e) => updateField('basicSalary', e.target.value)}
                     className={`w-full rounded-lg border pl-8 pr-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
@@ -595,18 +657,23 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                   />
                 </div>
                 {errors.basicSalary && <p className="text-xs text-red-600 mt-1">{errors.basicSalary}</p>}
+                {formData.basicSalary && Number(formData.basicSalary) >= 1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Annual CTC: ₹{formatIndianCurrency(Number(formData.basicSalary) * 12)}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label htmlFor="allowances" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Allowances
+                  Monthly Allowances
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
                   <input
                     type="number"
                     id="allowances"
-                    placeholder="0"
+                    placeholder="8000"
                     min={0}
                     value={formData.allowances}
                     onChange={(e) => updateField('allowances', e.target.value)}
@@ -617,73 +684,181 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               </div>
             </div>
 
+            {/* Net Salary Preview Card */}
+            {(formData.basicSalary && Number(formData.basicSalary) >= 1) && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 space-y-1.5">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-2">Net Salary Preview</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Basic (Monthly):</span>
+                  <span className="font-semibold text-gray-900">₹{formatIndianCurrency(Number(formData.basicSalary))}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Allowances:</span>
+                  <span className="font-semibold text-gray-900">₹{formatIndianCurrency(Number(formData.allowances) || 0)}</span>
+                </div>
+                <hr className="border-emerald-200 my-1" />
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-gray-800">Total Monthly:</span>
+                  <span className="text-gray-900">₹{formatIndianCurrency(Number(formData.basicSalary) + (Number(formData.allowances) || 0))}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold">
+                  <span className="text-gray-800">Annual CTC:</span>
+                  <span className="text-blue-700">₹{formatIndianCurrency((Number(formData.basicSalary) + (Number(formData.allowances) || 0)) * 12)}</span>
+                </div>
+              </div>
+            )}
+
+            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide pt-2">System Access</h4>
+
+            {/* Role Radio Cards */}
             <div>
               <p className="block text-sm font-semibold text-gray-700 mb-2">
-                User Role in System <span className="text-red-500">*</span>
+                System Role <span className="text-red-500">*</span>
               </p>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="Employee"
-                    checked={formData.userRole === 'Employee'}
-                    onChange={(e) => updateField('userRole', e.target.value)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-800 font-medium">Employee</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="HR Manager"
-                    checked={formData.userRole === 'HR Manager'}
-                    onChange={(e) => updateField('userRole', e.target.value)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-800 font-medium">HR Manager</span>
-                </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => updateField('userRole', 'Employee')}
+                  className={`flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all cursor-pointer ${
+                    formData.userRole === 'Employee'
+                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Employee</p>
+                    <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
+                      Can view dashboard, apply for leave, and download payslips
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => updateField('userRole', 'HR Manager')}
+                  className={`flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all cursor-pointer ${
+                    formData.userRole === 'HR Manager'
+                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-2xl">👥</span>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">HR Manager</p>
+                    <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
+                      Full access to manage employees, approve leaves, and run payroll
+                    </p>
+                  </div>
+                </button>
               </div>
+              {errors.userRole && <p className="text-xs text-red-600 mt-1">{errors.userRole}</p>}
             </div>
 
+            {/* Temporary Password */}
             <div>
               <label htmlFor="tempPassword" className="block text-sm font-semibold text-gray-700 mb-1">
                 Temporary Password <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                id="tempPassword"
-                placeholder="Min 8 characters"
-                value={formData.tempPassword}
-                onChange={(e) => updateField('tempPassword', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                  errors.tempPassword
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                }`}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="tempPassword"
+                  placeholder="Min 8 characters"
+                  value={formData.tempPassword}
+                  onChange={(e) => updateField('tempPassword', e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 pr-10 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.tempPassword
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                </button>
+              </div>
+              {formData.tempPassword && (
+                <div className="mt-1.5">
+                  <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${getPasswordStrength(formData.tempPassword).barColor} ${getPasswordStrength(formData.tempPassword).barWidth}`} />
+                  </div>
+                  <p className={`text-xs font-medium mt-0.5 ${getPasswordStrength(formData.tempPassword).textColor}`}>
+                    {getPasswordStrength(formData.tempPassword).label}
+                  </p>
+                </div>
+              )}
               <p className="text-xs text-gray-400 mt-1">User will change this on first login.</p>
               {errors.tempPassword && <p className="text-xs text-red-600 mt-1">{errors.tempPassword}</p>}
             </div>
 
+            {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-1">
                 Confirm Password <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                id="confirmPassword"
-                placeholder="Re-enter the password"
-                value={formData.confirmPassword}
-                onChange={(e) => updateField('confirmPassword', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                  errors.confirmPassword
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                }`}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  id="confirmPassword"
+                  placeholder="Re-enter the password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => updateField('confirmPassword', e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 pr-10 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.confirmPassword
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                </button>
+                {formData.confirmPassword && formData.tempPassword === formData.confirmPassword && (
+                  <span className="absolute right-10 top-1/2 -translate-y-1/2 text-green-500">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+                {formData.confirmPassword && formData.tempPassword !== formData.confirmPassword && (
+                  <span className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                )}
+              </div>
               {errors.confirmPassword && <p className="text-xs text-red-600 mt-1">{errors.confirmPassword}</p>}
+            </div>
+
+            {/* Review Summary */}
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-1.5">
+              <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Review Summary</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <span className="text-gray-500">Name:</span>
+                <span className="font-medium text-gray-900 truncate">{formData.fullName || '—'}</span>
+                <span className="text-gray-500">Email:</span>
+                <span className="font-medium text-gray-900 truncate">{formData.email || '—'}</span>
+                <span className="text-gray-500">Department:</span>
+                <span className="font-medium text-gray-900">{formData.department || '—'}</span>
+                <span className="text-gray-500">Role:</span>
+                <span className="font-medium text-gray-900 truncate">{formData.jobTitle || '—'}</span>
+                <span className="text-gray-500">Salary:</span>
+                <span className="font-medium text-gray-900">
+                  {formData.basicSalary ? `₹${formatIndianCurrency(Number(formData.basicSalary))}/mo` : '—'}
+                </span>
+                <span className="text-gray-500">System Role:</span>
+                <span className="font-medium text-gray-900">{formData.userRole || '—'}</span>
+              </div>
             </div>
 
             <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 mt-6">
@@ -706,13 +881,14 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                   !formData.tempPassword ||
                   formData.tempPassword.length < 8 ||
                   !formData.confirmPassword ||
+                  formData.tempPassword !== formData.confirmPassword ||
                   createEmployeeMutation.isPending
                 }
                 onClick={handleSubmit}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-w-[140px]"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-w-[150px]"
               >
                 {createEmployeeMutation.isPending && <SpinnerIcon className="h-4 w-4 animate-spin text-white" />}
-                {createEmployeeMutation.isPending ? 'Adding Employee...' : 'Submit'}
+                {createEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
               </button>
             </div>
           </div>
