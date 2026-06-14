@@ -71,3 +71,32 @@ export function formatDate(dateStr: string): string {
 
   return `${dayNum} ${monthStr} ${yearNum}`;
 }
+
+/**
+ * Formats a Date into a relative time string (e.g. "5 minutes ago", "2 days ago").
+ * Falls back to formatDate for anything older than 7 days.
+ *
+ * @param date The Date object to format
+ */
+export function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  }
+
+  return formatDate(date.toISOString());
+}
