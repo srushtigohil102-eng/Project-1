@@ -559,9 +559,10 @@ function EmployeesPage() {
           <p className="mt-1 text-sm text-gray-500">Manage your team members</p>
         </div>
 
-        {isHRManager && (
+          {isHRManager && (
           <button
             type="button"
+            data-testid="add-employee-btn"
             onClick={handleAddEmployee}
             className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 cursor-pointer"
           >

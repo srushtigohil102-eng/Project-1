@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './hooks/useAuth';
@@ -31,9 +32,43 @@ function NotFoundPage() {
   );
 }
 
+function GlobalShortcutHandler() {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      if (e.key === 'Escape') {
+        const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+        if (dialog) {
+          const closeBtn = dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+          if (closeBtn) {
+            e.preventDefault();
+            closeBtn.click();
+          }
+        }
+      }
+
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
+        const addBtn = document.querySelector<HTMLButtonElement>('[data-testid="add-employee-btn"]');
+        if (addBtn) {
+          e.preventDefault();
+          addBtn.click();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
+      <GlobalShortcutHandler />
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route

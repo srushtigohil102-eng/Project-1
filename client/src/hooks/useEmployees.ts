@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   getEmployees,
   getEmployeeById,
@@ -19,6 +19,7 @@ function useEmployees() {
     queryKey: ['employees'],
     queryFn: getEmployees,
     refetchInterval: false,
+    placeholderData: keepPreviousData,
   });
 }
 

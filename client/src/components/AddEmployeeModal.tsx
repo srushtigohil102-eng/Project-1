@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCreateEmployee } from '../hooks/useEmployees';
 import { showSuccess } from '../utils/toast';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
@@ -363,11 +364,12 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs"
         onClick={handleClose}
       />
-      <div className="relative w-full max-w-[520px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
+      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[520px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">Add New Employee</h3>
           <button
             type="button"
+            aria-label="Close"
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
             onClick={handleClose}
           >
@@ -460,7 +462,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                   id="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={(e) => updateField('dateOfBirth', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 [color-scheme:light]"
                 />
               </div>
             </div>
@@ -595,7 +597,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 min={getTodayString()}
                 value={formData.startDate}
                 onChange={(e) => updateField('startDate', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 ${
+                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
                   errors.startDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'

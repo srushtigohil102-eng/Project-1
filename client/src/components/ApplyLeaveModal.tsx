@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApplyLeave } from '../hooks/useLeave';
 import { calculateLeaveDays } from '../utils/helpers';
 import { showSuccess, showError } from '../utils/toast';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 interface ApplyLeaveModalProps {
   isOpen: boolean;
@@ -138,6 +139,8 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
 
   if (!isOpen) return null;
 
+  const focusTrapRef = useFocusTrap(isOpen);
+
   const isSubmitDisabled =
     !formData.fromDate ||
     !formData.toDate ||
@@ -153,7 +156,7 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
       />
 
       {/* White centered card */}
-      <div className="relative w-full max-w-[480px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
+      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[480px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -161,6 +164,7 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
           </h3>
           <button
             type="button"
+            aria-label="Close"
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
             onClick={onClose}
           >
@@ -214,7 +218,7 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
                 value={formData.fromDate}
                 onChange={handleFromDateChange}
                 required
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 ${
+                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
                   errors.fromDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20'
@@ -240,7 +244,7 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
                   if (errors.toDate) setErrors((prev) => ({ ...prev, toDate: undefined }));
                 }}
                 required
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 ${
+                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
                   errors.toDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20'

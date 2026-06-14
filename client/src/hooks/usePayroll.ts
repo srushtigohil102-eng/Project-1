@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   getPayroll,
   getPayrollByEmployee,
@@ -16,6 +16,7 @@ export function usePayroll() {
   return useQuery<PayrollRecord[], Error>({
     queryKey: ['payroll'],
     queryFn: getPayroll,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -27,6 +28,7 @@ export function usePayrollByEmployee(employeeId: string) {
     queryKey: ['payroll', 'employee', employeeId],
     queryFn: () => getPayrollByEmployee(employeeId),
     enabled: !!employeeId,
+    placeholderData: keepPreviousData,
   });
 }
 

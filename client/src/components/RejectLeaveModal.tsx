@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRejectLeave } from '../hooks/useLeave';
 import { showSuccess, showError } from '../utils/toast';
+import useFocusTrap from '../hooks/useFocusTrap';
 
 interface RejectLeaveModalProps {
   isOpen: boolean;
@@ -63,6 +64,8 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
 
   if (!isOpen) return null;
 
+  const focusTrapRef = useFocusTrap(isOpen);
+
   const isReasonValid = reason.trim().length >= 5;
 
   return (
@@ -71,13 +74,14 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs"
         onClick={handleClose}
       />
-      <div className="relative w-full max-w-[400px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
+      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[400px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">
             Reject Leave Request
           </h3>
           <button
             type="button"
+            aria-label="Close"
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors"
             onClick={handleClose}
           >

@@ -110,10 +110,39 @@ function SkeletonTable({ columnsCount }: { columnsCount: number }) {
   );
 }
 
-interface EmptyStateProps {
-  message: string;
-  submessage?: string;
+interface TabButtonProps {
+  label: string;
+  count: number;
+  isActive: boolean;
+  activeColor: 'blue' | 'emerald';
+  onClick: () => void;
 }
+
+function TabButton({ label, count, isActive, activeColor, onClick }: TabButtonProps) {
+  const activeBorderColor = activeColor === 'blue' ? 'border-blue-600 text-blue-600' : 'border-emerald-600 text-emerald-600';
+  const inactiveStyle = 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer inline-flex items-center gap-2 ${
+        isActive ? activeBorderColor : inactiveStyle
+      }`}
+    >
+      {label}
+      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+        isActive
+          ? activeColor === 'blue' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+          : 'bg-gray-100 text-gray-500'
+      }`}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function EmptyState({ message, submessage = 'No requests to display' }: EmptyStateProps) {
 
 function EmptyState({ message, submessage = 'No requests to display' }: EmptyStateProps) {
   return (
@@ -346,75 +375,51 @@ function LeavePage() {
         <nav className="flex space-x-8" aria-label="Tabs">
           {isHRManager ? (
             <>
-              <button
-                type="button"
+              <TabButton
+                label="All Requests"
+                count={displayedLeaves.length}
+                isActive={managerTab === 'all'}
+                activeColor="blue"
                 onClick={() => setManagerTab('all')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  managerTab === 'all'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                All Requests
-              </button>
-              <button
-                type="button"
+              />
+              <TabButton
+                label="Pending Approval"
+                count={displayedLeaves.filter((l) => l.status === 'pending').length}
+                isActive={managerTab === 'pending'}
+                activeColor="blue"
                 onClick={() => setManagerTab('pending')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  managerTab === 'pending'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                Pending Approval
-              </button>
-              <button
-                type="button"
+              />
+              <TabButton
+                label="Processed"
+                count={displayedLeaves.filter((l) => l.status === 'approved' || l.status === 'rejected').length}
+                isActive={managerTab === 'processed'}
+                activeColor="blue"
                 onClick={() => setManagerTab('processed')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  managerTab === 'processed'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                Processed
-              </button>
+              />
             </>
           ) : (
             <>
-              <button
-                type="button"
+              <TabButton
+                label="All"
+                count={displayedLeaves.length}
+                isActive={activeTab === 'all'}
+                activeColor="emerald"
                 onClick={() => setActiveTab('all')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === 'all'
-                    ? 'border-emerald-600 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                All
-              </button>
-              <button
-                type="button"
+              />
+              <TabButton
+                label="Pending"
+                count={displayedLeaves.filter((l) => l.status === 'pending').length}
+                isActive={activeTab === 'pending'}
+                activeColor="emerald"
                 onClick={() => setActiveTab('pending')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === 'pending'
-                    ? 'border-emerald-600 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                Pending
-              </button>
-              <button
-                type="button"
+              />
+              <TabButton
+                label="Approved"
+                count={displayedLeaves.filter((l) => l.status === 'approved').length}
+                isActive={activeTab === 'approved'}
+                activeColor="emerald"
                 onClick={() => setActiveTab('approved')}
-                className={`border-b-2 py-4 px-1 text-sm font-medium transition-colors cursor-pointer ${
-                  activeTab === 'approved'
-                    ? 'border-emerald-600 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                }`}
-              >
-                Approved
-              </button>
+              />
             </>
           )}
         </nav>
