@@ -50,4 +50,45 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  const headers = new Headers();
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (response.status === 401) {
+    clearStoredAuth();
+    navigateTo('/');
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  if (!response.ok) {
+    let message = 'Download failed';
+    try {
+      const errorBody = (await response.json()) as { message?: string };
+      message = errorBody.message ?? message;
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default apiFetch;

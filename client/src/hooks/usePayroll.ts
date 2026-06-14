@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getPayroll,
+  getPayrollByEmployee,
   runPayroll,
-  downloadPayslip,
   type PayrollRecord,
 } from '../services/apiService';
+import { downloadFile } from '../utils/api';
+
+export type { PayrollRecord };
 
 /**
  * Hook to retrieve all payroll records
@@ -13,6 +16,17 @@ export function usePayroll() {
   return useQuery<PayrollRecord[], Error>({
     queryKey: ['payroll'],
     queryFn: getPayroll,
+  });
+}
+
+/**
+ * Hook to retrieve payroll records for a specific employee
+ */
+export function usePayrollByEmployee(employeeId: string) {
+  return useQuery<PayrollRecord[], Error>({
+    queryKey: ['payroll', 'employee', employeeId],
+    queryFn: () => getPayrollByEmployee(employeeId),
+    enabled: !!employeeId,
   });
 }
 
@@ -31,14 +45,13 @@ export function useRunPayroll() {
 }
 
 /**
- * Hook to download a specific payslip
- * Confined to the specific ID and disabled by default (enabled: false)
- * to allow triggering on-demand via the refetch function.
+ * Hook to download a specific payslip as a PDF file
  */
-export function useDownloadPayslip(id: string) {
-  return useQuery<unknown, Error>({
-    queryKey: ['payroll', id, 'download'],
-    queryFn: () => downloadPayslip(id),
-    enabled: false,
+export function useDownloadPayslip() {
+  return useMutation<void, Error, { employeeId: string; month: string; year: string }>({
+    mutationFn: async ({ employeeId, month, year }) => {
+      const filename = `payslip-${month.toLowerCase()}-${year}.pdf`;
+      await downloadFile(`/payroll/${employeeId}/download`, filename);
+    },
   });
 }
