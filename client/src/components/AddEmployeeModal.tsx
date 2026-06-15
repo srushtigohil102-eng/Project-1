@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCreateEmployee } from '../hooks/useEmployees';
+import { checkEmailAvailable } from '../services/apiService';
 import { showSuccess } from '../utils/toast';
 import useFocusTrap from '../hooks/useFocusTrap';
 
@@ -91,6 +92,8 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
 const DEPARTMENT_OPTIONS = ['Engineering', 'Design', 'HR', 'Finance', 'Marketing', 'Operations', 'Sales'] as const;
 const EMPLOYMENT_TYPES = ['Full Time', 'Part Time', 'Contract', 'Intern'] as const;
 
+const FORM_SESSION_KEY = 'hrms_add_employee_form';
+
 const initialFormState: FormData = {
   fullName: '',
   email: '',
@@ -149,8 +152,109 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // State resets on mount when the parent uses conditional rendering.
-  // If the parent keeps the component mounted, the form preserves data across opens.
+  // Email availability
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+  const emailDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dirty tracking
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [pendingClose, setPendingClose] = useState(false);
+
+  // Session restore
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+
+  // Auto-focus refs per step
+  const step1Ref = useRef<HTMLInputElement>(null);
+  const step2Ref = useRef<HTMLSelectElement>(null);
+  const step3Ref = useRef<HTMLInputElement>(null);
+
+  // On mount, check for saved form data
+  useEffect(() => {
+    if (isOpen) {
+      const saved = sessionStorage.getItem(FORM_SESSION_KEY);
+      if (saved) {
+        setShowRestorePrompt(true);
+      } else {
+        setFormData(initialFormState);
+        setStep(1);
+        setErrors({});
+        setApiError(null);
+        setEmailStatus('idle');
+        setIsDirty(false);
+        setShowCloseConfirm(false);
+        setPendingClose(false);
+      }
+    }
+  }, [isOpen]);
+
+  const handleRestoreYes = useCallback(() => {
+    const saved = sessionStorage.getItem(FORM_SESSION_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as FormData;
+        setFormData(parsed);
+        setIsDirty(true);
+      } catch {
+        // corrupted data, start fresh
+      }
+    }
+    setShowRestorePrompt(false);
+  }, []);
+
+  const handleRestoreNo = useCallback(() => {
+    sessionStorage.removeItem(FORM_SESSION_KEY);
+    setFormData(initialFormState);
+    setIsDirty(false);
+    setShowRestorePrompt(false);
+  }, []);
+
+  // Auto-focus on step change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (step === 1) step1Ref.current?.focus();
+      else if (step === 2) step2Ref.current?.focus();
+      else if (step === 3) step3Ref.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [step]);
+
+  // Email availability debounce check
+  useEffect(() => {
+    const email = formData.email.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailStatus('idle');
+      return;
+    }
+
+    if (emailDebounceRef.current) {
+      clearTimeout(emailDebounceRef.current);
+    }
+
+    setEmailStatus('checking');
+
+    emailDebounceRef.current = setTimeout(async () => {
+      try {
+        const result = await checkEmailAvailable(email);
+        setEmailStatus(result.available ? 'available' : 'unavailable');
+      } catch {
+        setEmailStatus('idle');
+      }
+    }, 800);
+
+    return () => {
+      if (emailDebounceRef.current) {
+        clearTimeout(emailDebounceRef.current);
+      }
+    };
+  }, [formData.email]);
+
+  // Save form data to sessionStorage on changes
+  useEffect(() => {
+    if (isDirty) {
+      sessionStorage.setItem(FORM_SESSION_KEY, JSON.stringify(formData));
+    }
+  }, [formData, isDirty]);
 
   const getTodayString = (): string => {
     const today = new Date();
@@ -162,6 +266,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
   const updateField = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (!isDirty) setIsDirty(true);
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -260,44 +365,105 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     if (!validateStep3()) return;
 
     setApiError(null);
+    setErrors({});
+
+    const fieldToBackend: Record<string, string> = {
+      fullName: 'name',
+      jobTitle: 'role',
+      startDate: 'startDate',
+      department: 'department',
+      employmentType: 'employmentType',
+      basicSalary: 'basicSalary',
+      allowances: 'allowances',
+      tempPassword: 'password',
+      email: 'email',
+      phone: 'phone',
+      userRole: 'systemRole',
+    };
 
     try {
       await createEmployeeMutation.mutateAsync({
         name: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone || undefined,
-        dateOfBirth: formData.dateOfBirth || undefined,
-        gender: formData.gender || undefined,
         department: formData.department,
         role: formData.jobTitle.trim(),
         employmentType: formData.employmentType,
-        reportingManager: formData.reportingManager || undefined,
         startDate: formData.startDate,
         basicSalary: Number(formData.basicSalary),
         allowances: Number(formData.allowances) || 0,
-        systemRole: formData.userRole,
+        systemRole: formData.userRole === 'HR Manager' ? 'hr_manager' : 'employee',
         password: formData.tempPassword,
       });
 
+      sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
       showSuccess('Employee added successfully!');
       onSuccess();
     } catch (err) {
-      setApiError((err as Error).message || 'Failed to add employee');
+      const error = err as Error & { body?: { message?: string; errors?: Array<{ field: string; message: string }> } };
+      const body = error.body;
+
+      if (body?.message === 'Email already exists') {
+        setErrors((prev) => ({ ...prev, email: 'Email already exists' }));
+        setStep(1);
+        return;
+      }
+
+      if (body?.errors && Array.isArray(body.errors)) {
+        const newErrors: FormErrors = {};
+        for (const fe of body.errors) {
+          const frontendField = Object.entries(fieldToBackend).find(
+            ([, backend]) => backend === fe.field,
+          )?.[0];
+          if (frontendField && frontendField in newErrors) {
+            newErrors[frontendField as keyof FormErrors] = fe.message;
+          } else if (frontendField) {
+            newErrors[frontendField as keyof FormErrors] = fe.message;
+          }
+        }
+        setErrors(newErrors);
+
+        if (newErrors.email) setStep(1);
+        else if (newErrors.department || newErrors.jobTitle || newErrors.employmentType || newErrors.startDate) setStep(2);
+        return;
+      }
+
+      setApiError(error.message || 'Failed to add employee');
     }
   };
 
   const handleClose = () => {
-    if (!createEmployeeMutation.isPending) {
+    if (createEmployeeMutation.isPending) return;
+
+    if (isDirty) {
+      setShowCloseConfirm(true);
+      setPendingClose(true);
+    } else {
+      sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
     }
   };
+
+  const handleConfirmClose = useCallback(() => {
+    sessionStorage.removeItem(FORM_SESSION_KEY);
+    setShowCloseConfirm(false);
+    setPendingClose(false);
+    onClose();
+  }, [onClose]);
+
+  const handleCancelClose = useCallback(() => {
+    setShowCloseConfirm(false);
+    setPendingClose(false);
+  }, []);
 
   if (!isOpen) return null;
 
   const isStep1Valid =
     formData.fullName.trim().length >= 2 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
+    emailStatus !== 'unavailable' &&
+    emailStatus !== 'checking';
 
   const isStep2Valid =
     formData.department !== '' &&
@@ -377,6 +543,61 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
           </button>
         </div>
 
+        {showRestorePrompt && (
+          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 flex items-center justify-between gap-3">
+            <span>You have unsaved form data from before. Would you like to continue where you left off?</span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRestoreYes}
+                className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreNo}
+                className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showCloseConfirm && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/50" onClick={handleCancelClose} />
+            <div className="relative w-full max-w-[360px] rounded-2xl bg-white p-6 shadow-2xl border border-gray-150">
+              <div className="flex flex-col items-center text-center">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-4">
+                  <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Unsaved Changes</h3>
+                <p className="mt-2 text-sm text-gray-500">You have unsaved changes. Are you sure you want to close? Your data will be lost.</p>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleCancelClose}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmClose}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {renderStepIndicator()}
 
         {apiError && (
@@ -396,6 +617,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input
+                ref={step1Ref}
                 type="text"
                 id="fullName"
                 placeholder="John Doe"
@@ -414,19 +636,51 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1">
                 Email Address <span className="text-red-500">*</span>
               </label>
-              <input
-                type="email"
-                id="email"
-                placeholder="john@company.com"
-                value={formData.email}
-                onChange={(e) => updateField('email', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                  errors.email
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                }`}
-              />
-              {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
+              <div className="relative">
+                <input
+                  type="email"
+                  id="email"
+                  placeholder="john@company.com"
+                  value={formData.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 pr-8 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.email
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
+                {emailStatus === 'checking' && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <svg className="h-4 w-4 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </span>
+                )}
+                {emailStatus === 'available' && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+                {emailStatus === 'unavailable' && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+              {emailStatus === 'available' && (
+                <p className="text-xs text-green-600 mt-1">Email is available</p>
+              )}
+              {emailStatus === 'unavailable' && (
+                <p className="text-xs text-red-600 mt-1">Email already in use</p>
+              )}
+              {errors.email && (
+                <p className="text-xs text-red-600 mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -515,6 +769,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 Department <span className="text-red-500">*</span>
               </label>
               <select
+                ref={step2Ref}
                 id="department"
                 value={formData.department}
                 onChange={(e) => updateField('department', e.target.value)}
@@ -645,6 +900,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
                   <input
+                    ref={step3Ref}
                     type="number"
                     id="basicSalary"
                     placeholder="50000"

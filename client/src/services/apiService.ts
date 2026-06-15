@@ -75,6 +75,14 @@ export interface PayrollRecord {
   netPay: number;
 }
 
+export async function checkEmailAvailable(
+  email: string,
+): Promise<{ available: boolean }> {
+  return apiFetch<{ available: boolean }>(
+    `/employees/check-email?email=${encodeURIComponent(email)}`,
+  );
+}
+
 // ==========================================
 // Employee API Functions
 // ==========================================

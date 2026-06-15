@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AddEmployeeModal from '../components/AddEmployeeModal';
 import useAuth from '../hooks/useAuth';
 import useEmployees, {
   useDeleteEmployee,
@@ -241,6 +242,8 @@ function EmptyState({ isHRManager, onAddEmployee }: EmptyStateProps) {
 interface EmployeeRowProps {
   employee: Employee;
   isHRManager: boolean;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onViewDetails: (employee: Employee) => void;
@@ -251,6 +254,8 @@ interface EmployeeRowProps {
 function EmployeeRow({
   employee,
   isHRManager,
+  isSelected,
+  onSelect,
   onEdit,
   onDelete,
   onViewDetails,
@@ -258,7 +263,17 @@ function EmployeeRow({
   disableActions,
 }: EmployeeRowProps) {
   return (
-    <tr className="border-b border-gray-100 bg-white transition-colors even:bg-gray-50/40 hover:bg-blue-50/60">
+    <tr className={`border-b border-gray-100 transition-colors even:bg-gray-50/40 hover:bg-blue-50/60 ${isSelected ? 'bg-blue-50/80' : 'bg-white'}`}>
+      {isHRManager && (
+        <td className="px-3 py-4 w-10">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect(employee.id)}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+        </td>
+      )}
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
           <Avatar name={employee.name} />
@@ -395,6 +410,13 @@ function EmployeesPage() {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
+  // Bulk selection state
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  // Add employee modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   // Slide-in drawer details state
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -411,6 +433,62 @@ function EmployeesPage() {
 
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
+
+  const allVisibleSelected = useMemo(
+    () => paginatedEmployees.every((e) => selectedEmployees.has(e.id)),
+    [paginatedEmployees, selectedEmployees],
+  );
+
+  const handleSelectAll = useCallback((): void => {
+    setSelectedEmployees((prev) => {
+      const next = new Set(prev);
+      for (const e of paginatedEmployees) {
+        if (allVisibleSelected) next.delete(e.id);
+        else next.add(e.id);
+      }
+      return next;
+    });
+  }, [paginatedEmployees, allVisibleSelected]);
+
+  const handleSelectOne = useCallback((id: string): void => {
+    setSelectedEmployees((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleDeselectAll = useCallback((): void => {
+    setSelectedEmployees(new Set());
+  }, []);
+
+  const handleBulkDelete = useCallback((): void => {
+    setBulkDeleteOpen(true);
+  }, []);
+
+  const handleConfirmBulkDelete = useCallback(async (): Promise<void> => {
+    const ids = Array.from(selectedEmployees);
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch {
+        failed++;
+      }
+    }
+    if (failed === 0) {
+      showSuccess(`${ids.length} employee${ids.length !== 1 ? 's' : ''} deleted`);
+    } else {
+      showError(`${failed} employee${failed !== 1 ? 's' : ''} failed to delete`);
+    }
+    setSelectedEmployees(new Set());
+    setBulkDeleteOpen(false);
+  }, [selectedEmployees, deleteMutation]);
+
+  const exportSelected = useCallback((): void => {
+    window.alert('Export feature coming soon');
+  }, []);
 
   const handleSearchChange = useCallback((value: string): void => {
     setSearch(value);
@@ -429,7 +507,7 @@ function EmployeesPage() {
   }, []);
 
   const handleAddEmployee = useCallback((): void => {
-    window.alert('Add Employee form coming soon');
+    setIsAddModalOpen(true);
   }, []);
 
   const handleEdit = useCallback((employee: Employee): void => {
@@ -549,7 +627,7 @@ function EmployeesPage() {
     startIndex + PAGE_SIZE,
   );
 
-  const columnCount = isHRManager ? 6 : 5;
+  const columnCount = isHRManager ? 7 : 5;
 
   return (
     <>
@@ -594,6 +672,39 @@ function EmployeesPage() {
         )}
       </div>
 
+      {isHRManager && selectedEmployees.size > 0 && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-blue-800">
+              {selectedEmployees.size} employee{selectedEmployees.size !== 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportSelected}
+              className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+            >
+              Export Selected
+            </button>
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Deselect All
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {isError ? (
         <ErrorState
           message={error?.message ?? 'An unexpected error occurred.'}
@@ -607,6 +718,16 @@ function EmployeesPage() {
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
                 <tr>
+                  {isHRManager && (
+                    <th className="px-3 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected && selectedEmployees.size > 0}
+                        onChange={handleSelectAll}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </th>
+                  )}
                   <th
                     onClick={() => handleSort('name')}
                     className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
@@ -682,6 +803,8 @@ function EmployeesPage() {
                       key={employee.id}
                       employee={employee}
                       isHRManager={isHRManager}
+                      isSelected={selectedEmployees.has(employee.id)}
+                      onSelect={handleSelectOne}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       onViewDetails={handleViewDetails}
@@ -718,6 +841,27 @@ function EmployeesPage() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={deleteMutation.isPending}
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={bulkDeleteOpen}
+        title="Delete Selected Employees"
+        message={`Are you sure you want to delete ${selectedEmployees.size} selected employee${selectedEmployees.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText="Delete All"
+        confirmColor="red"
+        onConfirm={handleConfirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
+        isLoading={false}
+      />
+
+      {/* Add Employee Modal */}
+      <AddEmployeeModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          void refetch();
+        }}
       />
 
       {/* Slide-in Detail Panel */}

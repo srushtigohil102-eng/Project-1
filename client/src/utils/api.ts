@@ -5,6 +5,7 @@ import { API_BASE_URL } from './config';
 
 interface ApiErrorBody {
   message?: string;
+  errors?: Array<{ field: string; message: string }>;
 }
 
 async function apiFetch<T>(
@@ -64,15 +65,20 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     let message = 'Request failed';
+    let errorBody: ApiErrorBody | undefined;
 
     try {
-      const errorBody = (await response.json()) as ApiErrorBody;
+      errorBody = (await response.json()) as ApiErrorBody;
       message = errorBody.message ?? message;
     } catch {
       // Response body was not JSON — keep default message.
     }
 
-    throw new Error(message);
+    const error = new Error(message);
+    if (errorBody) {
+      (error as any).body = errorBody;
+    }
+    throw error;
   }
 
   if (response.status === 204) {
