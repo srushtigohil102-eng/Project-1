@@ -1,5 +1,6 @@
 import { clearStoredAuth, TOKEN_KEY } from './authStorage';
 import { navigateTo } from './navigation';
+import { showError } from './toast';
 import { API_BASE_URL } from './config';
 
 interface ApiErrorBody {
@@ -19,15 +20,46 @@ async function apiFetch<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const method = options.method ?? 'GET';
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${method} ${API_BASE_URL}${path}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    if (import.meta.env.DEV) {
+      console.error(`[API] Network error for ${method} ${path}`);
+    }
+    throw new Error('Cannot connect to server. Check your connection.');
+  }
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${response.status} ${method} ${path}`);
+  }
 
   if (response.status === 401) {
     clearStoredAuth();
-    navigateTo('/');
-    throw new Error('Session expired. Please log in again.');
+    showError('Session expired. Please login again.');
+    setTimeout(() => navigateTo('/'), 1500);
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (response.status === 403) {
+    throw new Error('You do not have permission to perform this action');
+  }
+
+  if (response.status === 404) {
+    throw new Error('The requested resource was not found');
+  }
+
+  if (response.status === 500) {
+    throw new Error('Server error. Please try again later.');
   }
 
   if (!response.ok) {
@@ -58,15 +90,46 @@ export async function downloadFile(path: string, filename: string): Promise<void
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'GET',
-    headers,
-  });
+  const method = 'GET';
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${method} ${API_BASE_URL}${path}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+    });
+  } catch {
+    if (import.meta.env.DEV) {
+      console.error(`[API] Network error for ${method} ${path}`);
+    }
+    throw new Error('Cannot connect to server. Check your connection.');
+  }
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${response.status} ${method} ${path}`);
+  }
 
   if (response.status === 401) {
     clearStoredAuth();
-    navigateTo('/');
-    throw new Error('Session expired. Please log in again.');
+    showError('Session expired. Please login again.');
+    setTimeout(() => navigateTo('/'), 1500);
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (response.status === 403) {
+    throw new Error('You do not have permission to perform this action');
+  }
+
+  if (response.status === 404) {
+    throw new Error('The requested resource was not found');
+  }
+
+  if (response.status === 500) {
+    throw new Error('Server error. Please try again later.');
   }
 
   if (!response.ok) {

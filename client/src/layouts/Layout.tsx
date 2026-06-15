@@ -1,6 +1,7 @@
 import React, { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import ApiStatus from '../components/ApiStatus';
 
 interface LayoutProps {
   children: ReactNode;
@@ -140,7 +141,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span className="hidden md:inline">Logout</span>
           </button>
 
-          <p className="mt-4 hidden text-center text-[10px] text-gray-500 md:block">v1.0.0</p>
+          <ApiStatus />
+
+          <p className="hidden text-center text-[10px] text-gray-500 md:block">v1.0.0</p>
         </div>
       </aside>
 
