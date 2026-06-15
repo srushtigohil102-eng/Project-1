@@ -1,6 +1,17 @@
 import apiFetch from '../utils/api';
 
 // ==========================================
+// Helper: normalize MongoDB _id → id
+// ==========================================
+
+type MongoDoc = Record<string, unknown>;
+
+function toAppEntity<T extends { id: string }>(doc: MongoDoc): T {
+  const { _id, ...rest } = doc;
+  return { id: _id as string, ...rest } as unknown as T;
+}
+
+// ==========================================
 // TypeScript Interfaces
 // ==========================================
 
@@ -69,25 +80,34 @@ export interface PayrollRecord {
 // ==========================================
 
 export async function getEmployees(): Promise<Employee[]> {
-  return apiFetch<Employee[]>('/employees');
+  const data = await apiFetch<MongoDoc[]>('/employees');
+  return data.map(toAppEntity<Employee>);
 }
 
 export async function getEmployeeById(id: string): Promise<Employee> {
-  return apiFetch<Employee>(`/employees/${id}`);
+  const data = await apiFetch<MongoDoc>(`/employees/${id}`);
+  return toAppEntity<Employee>(data);
 }
 
-export async function createEmployee(data: CreateEmployeeData): Promise<Employee> {
-  return apiFetch<Employee>('/employees', {
+export async function createEmployee(
+  payload: CreateEmployeeData,
+): Promise<Employee> {
+  const data = await apiFetch<MongoDoc>('/employees', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
+  return toAppEntity<Employee>(data);
 }
 
-export async function updateEmployee(id: string, data: Partial<CreateEmployeeData>): Promise<Employee> {
-  return apiFetch<Employee>(`/employees/${id}`, {
+export async function updateEmployee(
+  id: string,
+  payload: Partial<CreateEmployeeData>,
+): Promise<Employee> {
+  const data = await apiFetch<MongoDoc>(`/employees/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
+  return toAppEntity<Employee>(data);
 }
 
 export async function deleteEmployee(id: string): Promise<void> {
@@ -101,31 +121,39 @@ export async function deleteEmployee(id: string): Promise<void> {
 // ==========================================
 
 export async function getLeaves(): Promise<LeaveRequest[]> {
-  return apiFetch<LeaveRequest[]>('/leave');
+  const data = await apiFetch<MongoDoc[]>('/leave');
+  return data.map(toAppEntity<LeaveRequest>);
 }
 
 export async function getLeaveById(id: string): Promise<LeaveRequest> {
-  return apiFetch<LeaveRequest>(`/leave/${id}`);
+  const data = await apiFetch<MongoDoc>(`/leave/${id}`);
+  return toAppEntity<LeaveRequest>(data);
 }
 
-export async function applyLeave(data: ApplyLeaveData): Promise<LeaveRequest> {
-  return apiFetch<LeaveRequest>('/leave/apply', {
+export async function applyLeave(payload: ApplyLeaveData): Promise<LeaveRequest> {
+  const data = await apiFetch<MongoDoc>('/leave/apply', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
+  return toAppEntity<LeaveRequest>(data);
 }
 
 export async function approveLeave(id: string): Promise<LeaveRequest> {
-  return apiFetch<LeaveRequest>(`/leave/${id}/approve`, {
+  const data = await apiFetch<MongoDoc>(`/leave/${id}/approve`, {
     method: 'PUT',
   });
+  return toAppEntity<LeaveRequest>(data);
 }
 
-export async function rejectLeave(id: string, reason: string): Promise<LeaveRequest> {
-  return apiFetch<LeaveRequest>(`/leave/${id}/reject`, {
+export async function rejectLeave(
+  id: string,
+  reason: string,
+): Promise<LeaveRequest> {
+  const data = await apiFetch<MongoDoc>(`/leave/${id}/reject`, {
     method: 'PUT',
     body: JSON.stringify({ reason }),
   });
+  return toAppEntity<LeaveRequest>(data);
 }
 
 // ==========================================
@@ -133,11 +161,13 @@ export async function rejectLeave(id: string, reason: string): Promise<LeaveRequ
 // ==========================================
 
 export async function getPayroll(): Promise<PayrollRecord[]> {
-  return apiFetch<PayrollRecord[]>('/payroll');
+  const data = await apiFetch<MongoDoc[]>('/payroll');
+  return data.map(toAppEntity<PayrollRecord>);
 }
 
 export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]> {
-  return apiFetch<PayrollRecord[]>(`/payroll/${id}`);
+  const data = await apiFetch<MongoDoc[]>(`/payroll/${id}`);
+  return data.map(toAppEntity<PayrollRecord>);
 }
 
 export async function downloadPayslip(id: string): Promise<unknown> {
@@ -145,7 +175,8 @@ export async function downloadPayslip(id: string): Promise<unknown> {
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {
-  return apiFetch<PayrollRecord[]>('/payroll/run', {
+  const data = await apiFetch<MongoDoc[]>('/payroll/run', {
     method: 'POST',
   });
+  return data.map(toAppEntity<PayrollRecord>);
 }

@@ -33,17 +33,38 @@ export function useApplyLeave() {
   });
 }
 
+interface ApproveContext {
+  previousLeaves: LeaveRequest[] | undefined;
+}
+
 /**
- * Hook to approve a leave request by ID
+ * Hook to approve a leave request by ID with optimistic update
  */
 export function useApproveLeave() {
   const queryClient = useQueryClient();
 
-  return useMutation<LeaveRequest, Error, string>({
+  return useMutation<LeaveRequest, Error, string, ApproveContext>({
     mutationFn: (id: string) => approveLeave(id),
-    onSuccess: (data) => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['leaves'] });
+
+      const previousLeaves = queryClient.getQueryData<LeaveRequest[]>(['leaves']);
+
+      queryClient.setQueryData<LeaveRequest[]>(['leaves'], (old) =>
+        old?.map((leave) =>
+          leave.id === id ? { ...leave, status: 'approved' as const } : leave,
+        ),
+      );
+
+      return { previousLeaves };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousLeaves) {
+        queryClient.setQueryData(['leaves'], context.previousLeaves);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['leaves'] });
-      void queryClient.invalidateQueries({ queryKey: ['leaves', data.id] });
     },
   });
 }

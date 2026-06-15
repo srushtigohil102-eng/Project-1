@@ -142,7 +142,10 @@ function TabButton({ label, count, isActive, activeColor, onClick }: TabButtonPr
   );
 }
 
-function EmptyState({ message, submessage = 'No requests to display' }: EmptyStateProps) {
+interface EmptyStateProps {
+  message: string;
+  submessage?: string;
+}
 
 function EmptyState({ message, submessage = 'No requests to display' }: EmptyStateProps) {
   return (
@@ -473,36 +476,41 @@ function LeavePage() {
                   </div>
                 </td>
               </tr>
+            ) : displayedLeaves.length === 0 ? (
+              <tr>
+                <td colSpan={isHRManager ? 8 : 7} className="px-6 py-10">
+                  <EmptyState
+                    message={
+                      isHRManager
+                        ? 'No leave requests have been submitted yet'
+                        : 'You have not submitted any leave requests yet'
+                    }
+                    submessage={
+                      isHRManager
+                        ? 'Leave requests will appear here once employees submit them.'
+                        : 'Use the "Apply for Leave" button above to submit your first request.'
+                    }
+                  />
+                </td>
+              </tr>
             ) : filteredLeaves.length === 0 ? (
               <tr>
                 <td colSpan={isHRManager ? 8 : 7} className="px-6 py-10">
                   <EmptyState
                     message={
                       isHRManager
-                        ? managerTab === 'all'
-                          ? 'No leave requests found'
-                          : managerTab === 'pending'
-                          ? 'No pending requests'
-                          : 'No processed requests'
-                        : activeTab === 'all'
-                        ? 'No leave requests found'
+                        ? managerTab === 'pending'
+                          ? 'No pending leaves found'
+                          : managerTab === 'processed'
+                          ? 'No processed leaves found'
+                          : 'No leaves found'
                         : activeTab === 'pending'
-                        ? 'No pending requests'
-                        : 'No approved requests'
+                        ? 'No pending leaves found'
+                        : activeTab === 'approved'
+                        ? 'No approved leaves found'
+                        : 'No leaves found'
                     }
-                    submessage={
-                      isHRManager
-                        ? managerTab === 'all'
-                          ? 'There are no leave requests in the system.'
-                          : managerTab === 'pending'
-                          ? 'All employee requests have been processed!'
-                          : 'There are no approved or rejected requests.'
-                        : activeTab === 'all'
-                        ? 'You have not applied for any leave yet.'
-                        : activeTab === 'pending'
-                        ? 'All your requests have been processed!'
-                        : 'None of your requests are currently approved.'
-                    }
+                    submessage="Try selecting a different tab."
                   />
                 </td>
               </tr>
