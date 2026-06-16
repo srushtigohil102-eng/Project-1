@@ -289,8 +289,8 @@ function EmployeeRow({
           </div>
         </div>
       </td>
-      <td className="px-4 py-4 text-gray-700">{employee.department}</td>
-      <td className="px-4 py-4 text-gray-700">{employee.role}</td>
+      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.department}>{employee.department}</td>
+      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.role}>{employee.role}</td>
       <td className="px-4 py-4">
         <StatusBadge status={employee.status} />
       </td>

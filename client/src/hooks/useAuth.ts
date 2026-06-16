@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   clearStoredAuth,
+  onAuthChange,
   readStoredAuth,
   writeStoredAuth,
   type UserType,
@@ -42,6 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       navigate(path);
     });
   }, [navigate]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthChange(() => {
+      const { token: freshToken, user: freshUser } = readStoredAuth();
+      setToken(freshToken);
+      setUser(freshUser);
+      if (!freshToken) {
+        navigateTo('/');
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const login = useCallback((newToken: string, newUser: UserType): void => {
     writeStoredAuth(newToken, newUser);

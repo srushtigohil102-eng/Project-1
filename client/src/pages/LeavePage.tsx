@@ -527,11 +527,11 @@ function LeavePage() {
                       onClick={() => handleRowClick(leave)}
                       className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="max-w-48 truncate px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <Avatar name={leave.employeeName} size="md" />
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{leave.employeeName}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-gray-900" title={leave.employeeName}>{leave.employeeName}</div>
                             <div className="text-xs text-gray-500">ID: {leave.employeeId}</div>
                           </div>
                         </div>

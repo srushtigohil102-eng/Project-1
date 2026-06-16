@@ -309,8 +309,8 @@ function PayrollPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={record.employeeName} size="sm" />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{record.employeeName}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900" title={record.employeeName}>{record.employeeName}</p>
                       </div>
                     </div>
                   </td>

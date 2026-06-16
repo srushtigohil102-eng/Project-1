@@ -436,10 +436,9 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   const handleClose = () => {
     if (createEmployeeMutation.isPending) return;
 
-    if (isDirty) {
+    if (isDirty || showRestorePrompt) {
       setShowCloseConfirm(true);
     } else {
-      sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
     }
   };
