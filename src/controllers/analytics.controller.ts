@@ -3,6 +3,7 @@ import { Employee } from "../models/Employee";
 import mongoose from "mongoose";
 
 
+
 // Get employees with department and manager details using aggregation
 export const getEmployeesWithDetails = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -348,7 +349,6 @@ export const getEmployeeHierarchy = async (req: Request, res: Response): Promise
   }
 };
 
-//  DEPARTMENT REPORTS 
 
 // Get department reports: total employees, average salary, min/max salary
 export const getDepartmentReports = async (_req: Request, res: Response): Promise<void> => {
@@ -515,3 +515,320 @@ export const getDepartmentDistribution = async (_req: Request, res: Response): P
   }
 };
 
+// Get leave reports per department
+export const getDepartmentLeaveReports = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const LeaveRequest = require("../models/LeaveRequest").LeaveRequest;
+    
+    const result = await LeaveRequest.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "employeeInfo.department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: {
+            departmentId: "$dept._id",
+            departmentName: "$dept.name",
+            departmentCode: "$dept.code",
+            status: "$status"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            departmentId: "$_id.departmentId",
+            departmentName: "$_id.departmentName",
+            departmentCode: "$_id.departmentCode"
+          },
+          pending: {
+            $sum: {
+              $cond: [{ $eq: ["$_id.status", "Pending"] }, "$count", 0]
+            }
+          },
+          approved: {
+            $sum: {
+              $cond: [{ $eq: ["$_id.status", "Approved"] }, "$count", 0]
+            }
+          },
+          rejected: {
+            $sum: {
+              $cond: [{ $eq: ["$_id.status", "Rejected"] }, "$count", 0]
+            }
+          },
+          cancelled: {
+            $sum: {
+              $cond: [{ $eq: ["$_id.status", "Cancelled"] }, "$count", 0]
+            }
+          },
+          totalLeaves: { $sum: "$count" }
+        }
+      },
+      {
+        $sort: { "_id.departmentName": 1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            id: "$_id.departmentId",
+            name: "$_id.departmentName",
+            code: "$_id.departmentCode"
+          },
+          pendingLeaveCount: "$pending",
+          approvedLeaveCount: "$approved",
+          rejectedLeaveCount: "$rejected",
+          cancelledLeaveCount: "$cancelled",
+          totalLeaveCount: "$totalLeaves"
+        }
+      }
+    ]) as any[];
+
+    const overallStats = {
+      totalPendingLeaves: result.reduce((sum: number, dept: any) => sum + (dept.pendingLeaveCount ?? 0), 0),
+      totalApprovedLeaves: result.reduce((sum: number, dept: any) => sum + (dept.approvedLeaveCount ?? 0), 0),
+      totalRejectedLeaves: result.reduce((sum: number, dept: any) => sum + (dept.rejectedLeaveCount ?? 0), 0),
+      totalCancelledLeaves: result.reduce((sum: number, dept: any) => sum + (dept.cancelledLeaveCount ?? 0), 0),
+      totalLeaves: result.reduce((sum: number, dept: any) => sum + (dept.totalLeaveCount ?? 0), 0)
+    };
+    
+    res.status(200).json({
+      success: true,
+      overallStats,
+      departments: result
+    });
+  } catch (error) {
+    console.error("Department leave reports error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch department leave reports", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+// Get pending leave summary (urgent)
+export const getPendingLeaveSummary = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const LeaveRequest = require("../models/LeaveRequest").LeaveRequest;
+    
+    const result = await LeaveRequest.aggregate([
+      {
+        $match: {
+          status: "Pending",
+          startDate: { $gte: new Date() }
+        }
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "employeeInfo.department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$dept._id",
+          departmentName: { $first: "$dept.name" },
+          departmentCode: { $first: "$dept.code" },
+          pendingCount: { $sum: 1 },
+          leaves: {
+            $push: {
+              employeeName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+              employeeId: "$employeeInfo.employeeId",
+              leaveType: "$leaveType",
+              startDate: "$startDate",
+              endDate: "$endDate",
+              reason: "$reason",
+              numberOfDays: "$numberOfDays"
+            }
+          }
+        }
+      },
+      {
+        $sort: { pendingCount: -1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            id: "$_id",
+            name: "$departmentName",
+            code: "$departmentCode"
+          },
+          pendingCount: 1,
+          leaves: 1
+        }
+      }
+    ]);
+    
+    const totalPending = result.reduce((sum: number, dept: { pendingCount: number }) => sum + dept.pendingCount, 0);
+    
+    res.status(200).json({
+      success: true,
+      totalPendingLeaves: totalPending,
+      departments: result
+    });
+  } catch (error) {
+    console.error("Pending leave summary error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch pending leave summary", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+// Get leave type distribution per department
+export const getLeaveTypeDistribution = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const LeaveRequest = require("../models/LeaveRequest").LeaveRequest;
+    
+    const result = await LeaveRequest.aggregate([
+      {
+        $match: {
+          status: "Approved",
+          createdAt: {
+            $gte: new Date(new Date().setMonth(new Date().getMonth() - 12))
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "employeeInfo.department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: {
+            departmentId: "$dept._id",
+            departmentName: "$dept.name",
+            departmentCode: "$dept.code",
+            leaveType: "$leaveType"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            departmentId: "$_id.departmentId",
+            departmentName: "$_id.departmentName",
+            departmentCode: "$_id.departmentCode"
+          },
+          leaveTypes: {
+            $push: {
+              type: "$_id.leaveType",
+              count: "$count"
+            }
+          },
+          totalLeaves: { $sum: "$count" }
+        }
+      },
+      {
+        $sort: { "_id.departmentName": 1 }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            id: "$_id.departmentId",
+            name: "$_id.departmentName",
+            code: "$_id.departmentCode"
+          },
+          leaveTypes: 1,
+          totalLeaves: 1
+        }
+      }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      departments: result
+    });
+  } catch (error) {
+    console.error("Leave type distribution error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch leave type distribution", 
+      error: (error as Error).message 
+    });
+  }
+};
