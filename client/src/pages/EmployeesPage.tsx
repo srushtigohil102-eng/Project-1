@@ -434,6 +434,63 @@ function EmployeesPage() {
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
 
+  const filteredEmployees = useMemo(() => {
+    if (!employees) {
+      return [];
+    }
+
+    const query = search.trim().toLowerCase();
+
+    return employees.filter((employee) => {
+      const matchesSearch =
+        !query ||
+        employee.name.toLowerCase().includes(query) ||
+        employee.email.toLowerCase().includes(query);
+
+      const matchesDepartment =
+        department === 'All Departments' ||
+        employee.department.toLowerCase() === department.toLowerCase();
+
+      return matchesSearch && matchesDepartment;
+    });
+  }, [employees, search, department]);
+
+  const sortedEmployees = useMemo(() => {
+    if (!filteredEmployees) {
+      return [];
+    }
+    if (!sortField) {
+      return filteredEmployees;
+    }
+
+    return [...filteredEmployees].sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredEmployees, sortField, sortOrder]);
+
+  const totalCount = filteredEmployees.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const startIndex = (effectivePage - 1) * PAGE_SIZE;
+  const paginatedEmployees = sortedEmployees.slice(
+    startIndex,
+    startIndex + PAGE_SIZE,
+  );
+
   const allVisibleSelected = useMemo(
     () => paginatedEmployees.every((e) => selectedEmployees.has(e.id)),
     [paginatedEmployees, selectedEmployees],
@@ -569,63 +626,6 @@ function EmployeesPage() {
       return field;
     });
   }, []);
-
-  const filteredEmployees = useMemo(() => {
-    if (!employees) {
-      return [];
-    }
-
-    const query = search.trim().toLowerCase();
-
-    return employees.filter((employee) => {
-      const matchesSearch =
-        !query ||
-        employee.name.toLowerCase().includes(query) ||
-        employee.email.toLowerCase().includes(query);
-
-      const matchesDepartment =
-        department === 'All Departments' ||
-        employee.department.toLowerCase() === department.toLowerCase();
-
-      return matchesSearch && matchesDepartment;
-    });
-  }, [employees, search, department]);
-
-  const sortedEmployees = useMemo(() => {
-    if (!filteredEmployees) {
-      return [];
-    }
-    if (!sortField) {
-      return filteredEmployees;
-    }
-
-    return [...filteredEmployees].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  }, [filteredEmployees, sortField, sortOrder]);
-
-  const totalCount = filteredEmployees.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const effectivePage = Math.min(currentPage, totalPages);
-  const startIndex = (effectivePage - 1) * PAGE_SIZE;
-  const paginatedEmployees = sortedEmployees.slice(
-    startIndex,
-    startIndex + PAGE_SIZE,
-  );
 
   const columnCount = isHRManager ? 7 : 5;
 

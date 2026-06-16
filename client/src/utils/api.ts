@@ -74,9 +74,9 @@ async function apiFetch<T>(
       // Response body was not JSON — keep default message.
     }
 
-    const error = new Error(message);
+    const error = new Error(message) as Error & { body?: unknown };
     if (errorBody) {
-      (error as any).body = errorBody;
+      error.body = errorBody;
     }
     throw error;
   }

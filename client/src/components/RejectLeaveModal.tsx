@@ -62,9 +62,9 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
     }
   };
 
-  if (!isOpen) return null;
-
   const focusTrapRef = useFocusTrap(isOpen);
+
+  if (!isOpen) return null;
 
   const isReasonValid = reason.trim().length >= 5;
 

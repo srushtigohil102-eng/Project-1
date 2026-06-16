@@ -54,9 +54,8 @@ function PayrollPage() {
   const runPayrollMutation = useRunPayroll();
   const downloadPayslipMutation = useDownloadPayslip();
 
-  const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showConfirm, setShowConfirm] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
@@ -65,9 +64,11 @@ function PayrollPage() {
   }, []);
 
   const canGoNext = useMemo(() => {
-    return selectedYear < now.getFullYear() ||
-      (selectedYear === now.getFullYear() && selectedMonth < now.getMonth());
-  }, [selectedMonth, selectedYear, now]);
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    return selectedYear < currentYear ||
+      (selectedYear === currentYear && selectedMonth < currentMonth);
+  }, [selectedMonth, selectedYear]);
 
   const goPrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
@@ -77,7 +78,7 @@ function PayrollPage() {
       }
       return prev - 1;
     });
-  }, []);
+  }, [setSelectedMonth, setSelectedYear]);
 
   const goNextMonth = useCallback(() => {
     if (!canGoNext) return;
@@ -88,7 +89,7 @@ function PayrollPage() {
       }
       return prev + 1;
     });
-  }, [canGoNext]);
+  }, [canGoNext, setSelectedMonth, setSelectedYear]);
 
   const filteredRecords = useMemo<PayrollRecord[]>(() => {
     if (!payrollData) return [];

@@ -159,7 +159,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   // Dirty tracking
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const [pendingClose, setPendingClose] = useState(false);
 
   // Session restore
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
@@ -174,6 +173,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     if (isOpen) {
       const saved = sessionStorage.getItem(FORM_SESSION_KEY);
       if (saved) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowRestorePrompt(true);
       } else {
         setFormData(initialFormState);
@@ -183,7 +183,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         setEmailStatus('idle');
         setIsDirty(false);
         setShowCloseConfirm(false);
-        setPendingClose(false);
       }
     }
   }, [isOpen]);
@@ -223,6 +222,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   useEffect(() => {
     const email = formData.email.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEmailStatus('idle');
       return;
     }
@@ -438,7 +438,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
     if (isDirty) {
       setShowCloseConfirm(true);
-      setPendingClose(true);
     } else {
       sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
@@ -448,14 +447,14 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   const handleConfirmClose = useCallback(() => {
     sessionStorage.removeItem(FORM_SESSION_KEY);
     setShowCloseConfirm(false);
-    setPendingClose(false);
     onClose();
   }, [onClose]);
 
   const handleCancelClose = useCallback(() => {
     setShowCloseConfirm(false);
-    setPendingClose(false);
   }, []);
+
+  const focusTrapRef = useFocusTrap(isOpen);
 
   if (!isOpen) return null;
 

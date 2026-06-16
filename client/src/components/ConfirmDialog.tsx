@@ -51,9 +51,9 @@ function ConfirmDialog({
   onCancel,
   isLoading = false,
 }: ConfirmDialogProps) {
-  if (!isOpen) return null;
-
   const focusTrapRef = useFocusTrap(isOpen);
+
+  if (!isOpen) return null;
 
   const colors = COLOR_CONFIG[confirmColor];
 

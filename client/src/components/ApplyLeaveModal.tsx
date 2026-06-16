@@ -137,9 +137,9 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   const focusTrapRef = useFocusTrap(isOpen);
+
+  if (!isOpen) return null;
 
   const isSubmitDisabled =
     !formData.fromDate ||
