@@ -571,3 +571,192 @@ export const getDepartmentPayrollStats = async (req: Request, res: Response): Pr
     });
   }
 };
+// Get monthly payroll summary
+export const getMonthlyPayrollSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { year, month } = req.query;
+    
+    const filter: any = {};
+    if (year) filter.year = parseInt(year as string);
+    if (month) filter.month = parseInt(month as string);
+    
+    const result = await Payroll.aggregate([
+      {
+        $match: filter
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: "$year",
+            month: "$month"
+          },
+          totalEmployees: { $sum: 1 },
+          totalBasicSalary: { $sum: "$salaryBreakdown.basic" },
+          totalHRA: { $sum: "$salaryBreakdown.hra" },
+          totalGrossSalary: { $sum: "$grossSalary" },
+          totalDeductions: { $sum: "$totalDeductions" },
+          totalNetSalary: { $sum: "$netSalary" },
+          totalTax: { $sum: "$deductionBreakdown.tax" },
+          totalPF: { $sum: "$deductionBreakdown.providentFund" },
+          avgGrossSalary: { $avg: "$grossSalary" },
+          avgNetSalary: { $avg: "$netSalary" },
+          paidCount: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Paid"] }, 1, 0]
+            }
+          },
+          pendingCount: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Processed"] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $sort: {
+          "_id.year": -1,
+          "_id.month": -1
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          year: "$_id.year",
+          month: "$_id.month",
+          monthName: {
+            $let: {
+              vars: {
+                months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+              },
+              in: { $arrayElemAt: ["$$months", { $subtract: ["$_id.month", 1] }] }
+            }
+          },
+          totalEmployees: 1,
+          totalBasicSalary: 1,
+          totalHRA: 1,
+          totalGrossSalary: 1,
+          totalDeductions: 1,
+          totalNetSalary: 1,
+          totalTax: 1,
+          totalPF: 1,
+          avgGrossSalary: { $round: ["$avgGrossSalary", 2] },
+          avgNetSalary: { $round: ["$avgNetSalary", 2] },
+          paidCount: 1,
+          pendingCount: 1
+        }
+      }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error("Monthly payroll summary error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch monthly payroll summary", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+// Get top earners
+export const getTopEarners = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { year, month, limit = 10 } = req.query;
+    
+    const filter: any = {};
+    if (year) filter.year = parseInt(year as string);
+    if (month) filter.month = parseInt(month as string);
+    
+    const result = await Payroll.aggregate([
+      {
+        $match: filter
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "employeeInfo.department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $sort: {
+          netSalary: -1
+        }
+      },
+      {
+        $limit: parseInt(limit as string)
+      },
+      {
+        $project: {
+          _id: 0,
+          employee: {
+            _id: "$employeeInfo._id",
+            employeeId: "$employeeInfo.employeeId",
+            fullName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+            designation: "$employeeInfo.designation"
+          },
+          department: {
+            name: "$dept.name",
+            code: "$dept.code"
+          },
+          month: 1,
+          year: 1,
+          basicSalary: "$salaryBreakdown.basic",
+          grossSalary: 1,
+          netSalary: 1,
+          status: 1
+        }
+      }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error("Top earners error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch top earners", 
+      error: (error as Error).message 
+    });
+  }
+};
