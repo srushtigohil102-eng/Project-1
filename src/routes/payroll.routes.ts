@@ -56,4 +56,7 @@ router.put("/:id", requireHR, updatePayroll);
 router.put("/:id/payment", requireHR, processPayment);
 router.delete("/:id", requireAdmin, deletePayroll);
 
+router.get("/trends", getPayrollTrends);
+router.get("/comparison", getPayrollComparison);
+
 export default router;

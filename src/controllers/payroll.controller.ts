@@ -867,7 +867,7 @@ export const getTaxBreakdown = async (req: Request, res: Response): Promise<void
   }
 };
 
-// 7. Get payroll trends
+// 7. Get payroll trends (month-over-month changes) - ONLY ONE COPY
 export const getPayrollTrends = async (req: Request, res: Response): Promise<void> => {
   try {
     const { year } = req.query;
@@ -973,7 +973,7 @@ export const getPayrollTrends = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// 8. Get payroll comparison between months
+// 8. Get payroll comparison between months - ONLY ONE COPY
 export const getPayrollComparison = async (req: Request, res: Response): Promise<void> => {
   try {
     const { year } = req.query;
