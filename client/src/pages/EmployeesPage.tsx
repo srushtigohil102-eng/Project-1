@@ -544,7 +544,7 @@ function EmployeesPage() {
   }, [selectedEmployees, deleteMutation]);
 
   const exportSelected = useCallback((): void => {
-    window.alert('Export feature coming soon');
+    showSuccess('Export feature coming soon');
   }, []);
 
   const handleSearchChange = useCallback((value: string): void => {
@@ -568,7 +568,7 @@ function EmployeesPage() {
   }, []);
 
   const handleEdit = useCallback((employee: Employee): void => {
-    window.alert(`Edit employee: ${employee.name}`);
+    showSuccess(`Edit employee: ${employee.name}`);
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
@@ -990,7 +990,7 @@ function EmployeesPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    window.alert(
+                    showSuccess(
                       `Edit feature coming soon for ${selectedEmployee.name}`,
                     );
                   }}

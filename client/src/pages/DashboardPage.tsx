@@ -5,6 +5,7 @@ import useEmployees from '../hooks/useEmployees';
 import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
 import { formatTimeAgo } from '../utils/helpers';
+import { showSuccess } from '../utils/toast';
 
 type ActivityType =
   | 'employee'
@@ -319,7 +320,7 @@ function DashboardPage() {
   }, [employees]);
 
   const handleAddEmployee = (): void => {
-    window.alert('Opening add employee form');
+    showSuccess('Opening add employee form');
   };
 
   if (isLoading) {
