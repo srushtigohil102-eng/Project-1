@@ -16,6 +16,33 @@ Two types of users can use this system:
 
 ---
 
+## Features
+
+### Week 1 — Core Foundation
+- [x] Secure JWT login (HR Manager + Employee)
+- [x] Role-based access control (ProtectedRoute)
+- [x] Employee table with search, filter, and pagination
+- [x] React Query integration for server state management
+- [x] Responsive sidebar layout with navigation
+
+### Week 2 — Leave, Onboarding & Payroll
+- [x] Leave management system with apply / approve / reject
+- [x] Multi-step employee onboarding form (3-step wizard)
+- [x] Payslip PDF download
+- [x] Dashboard connected to real-time API data
+- [x] Employee search, filter, sort, and bulk actions
+- [x] Toast notifications for all user actions
+- [x] Optimistic updates on leave approve/reject
+
+### Week 3 — Planned (upcoming)
+- [ ] Advanced Mongoose aggregations for reports (Member B)
+- [ ] GitHub Actions CI with full test suite
+- [ ] Docker setup for backend and frontend
+- [ ] Payslip email delivery
+- [ ] Pagination and export improvements
+
+---
+
 ## Tech Stack
 
 | Part | Technology |
@@ -46,10 +73,45 @@ README.md
 
 | Member | Role | Branch |
 |--------|------|--------|
-| Member A | Backend Lead | mKarthika |
+| Member A | Backend Lead | Karthika |
 | Member B | Database and PDF | Himanshi |
 | Member C | Frontend Lead | Srushti |
 | Member D | DevOps Lead | Anoop |
+
+---
+
+## Week-wise Progress
+
+| Week | Dates | Status |
+|------|-------|--------|
+| Week 1 | 5th – 11th | ✅ Complete |
+| Week 2 | 12th – 18th | ✅ Complete |
+| Week 3 | 19th – 25th | 🔄 In Progress |
+
+---
+
+## Week 2 Highlights
+
+**What was built in Week 2 (12th – 18th):**
+
+- **Leave Management System** — Full-featured leave lifecycle: employees apply for leave via a validated modal, HR managers approve or reject with a reject reason, tabs filter by status, and a detail slide-over panel shows full leave information. Optimistic updates give instant feedback on approve/reject actions.
+- **Multi-Step Onboarding Wizard** — A 3-step employee creation form (Personal Info → Employment → Compensation) with back navigation that preserves all entered data, email availability validation on blur, and a final submit that merges all steps into a single API call.
+- **Payslip Download** — Download buttons on each payroll row trigger PDF downloads via the backend, with loading states and error handling for network failures.
+- **Dashboard Connected to Real Data** — The dashboard now pulls live data from the API for employee counts, leave stats, payroll summaries, and recent activity, replacing all hardcoded mock data with React Query hooks.
+- **Bulk Operations & Polish** — Bulk selection and bulk delete on the employees table, consistent toast notifications across all actions, edge case handling for empty states and API errors, and demo mode for offline testing.
+
+---
+
+## Known Limitations
+
+These items are intentionally deferred to Week 3 or Week 4 and reflect planned iteration rather than incomplete work:
+
+- **Email notifications** — Leave approval/rejection emails are planned but not yet implemented (payslip email delivery is also on the roadmap)
+- **Advanced payroll reports** — Department-wise cost breakdowns and year-over-year comparisons are scheduled for Week 3 with Mongoose aggregation pipelines
+- **CI/CD pipeline** — GitHub Actions workflows are configured for linting but the full test suite and deployment automation will be wired in Week 3
+- **Docker containerization** — The application currently runs locally; Docker Compose for both frontend and backend is planned
+- **Export to CSV/Excel** — The export button on the Employees page is currently a placeholder; full CSV and Excel export will be added in a future sprint
+- **Accessibility audit** — Keyboard navigation and screen reader compatibility improvements are scheduled for the final polish sprint
 
 ---
 
@@ -92,12 +154,21 @@ Backend  → http://localhost:5000
 
 ## Environment Variables
 
-Create a `.env` file inside the `server` folder.
+### Backend (server/.env)
 Copy from `.env.example` and fill in your values:
+```
 PORT=5000
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_secret_key_here
 JWT_EXPIRES_IN=7d
+```
+
+### Frontend (client/.env)
+Create a `.env` file inside the `client` folder:
+```
+VITE_API_URL=http://localhost:5000
+```
+`VITE_API_URL` sets the backend API base URL. In development this defaults to the Vite proxy; set it to your deployed backend URL in production.
 
 ---
 
