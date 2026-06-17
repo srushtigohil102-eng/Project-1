@@ -441,3 +441,133 @@ export const getEmployeePayrollSummary = async (req: Request, res: Response): Pr
     });
   }
 };
+// Get department-wise payroll statistics
+export const getDepartmentPayrollStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { year, month } = req.query;
+    
+    const filter: any = {};
+    if (year) filter.year = parseInt(year as string);
+    if (month) filter.month = parseInt(month as string);
+    
+    const result = await Payroll.aggregate([
+      {
+        $match: filter
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "employeeInfo.department",
+          foreignField: "_id",
+          as: "dept"
+        }
+      },
+      {
+        $unwind: {
+          path: "$dept",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: {
+            departmentId: "$dept._id",
+            departmentName: "$dept.name",
+            departmentCode: "$dept.code",
+            year: "$year",
+            month: "$month"
+          },
+          totalEmployees: { $sum: 1 },
+          totalBasicSalary: { $sum: "$salaryBreakdown.basic" },
+          totalHRA: { $sum: "$salaryBreakdown.hra" },
+          totalDA: { $sum: "$salaryBreakdown.da" },
+          totalTA: { $sum: "$salaryBreakdown.ta" },
+          totalGrossSalary: { $sum: "$grossSalary" },
+          totalDeductions: { $sum: "$totalDeductions" },
+          totalNetSalary: { $sum: "$netSalary" },
+          avgGrossSalary: { $avg: "$grossSalary" },
+          avgNetSalary: { $avg: "$netSalary" },
+          totalTax: { $sum: "$deductionBreakdown.tax" },
+          totalPF: { $sum: "$deductionBreakdown.providentFund" },
+          payrolls: {
+            $push: {
+              employeeId: "$employeeInfo.employeeId",
+              employeeName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+              grossSalary: "$grossSalary",
+              netSalary: "$netSalary",
+              status: "$status"
+            }
+          }
+        }
+      },
+      {
+        $sort: {
+          "_id.departmentName": 1,
+          "_id.year": -1,
+          "_id.month": -1
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          department: {
+            id: "$_id.departmentId",
+            name: "$_id.departmentName",
+            code: "$_id.departmentCode"
+          },
+          year: "$_id.year",
+          month: "$_id.month",
+          totalEmployees: 1,
+          totalBasicSalary: 1,
+          totalHRA: 1,
+          totalDA: 1,
+          totalTA: 1,
+          totalGrossSalary: 1,
+          totalDeductions: 1,
+          totalNetSalary: 1,
+          avgGrossSalary: { $round: ["$avgGrossSalary", 2] },
+          avgNetSalary: { $round: ["$avgNetSalary", 2] },
+          totalTax: 1,
+          totalPF: 1,
+          payrolls: 1
+        }
+      }
+    ]);
+    
+    // Calculate overall company stats
+    const companyStats = {
+      totalDepartments: result.length,
+      totalPayroll: result.reduce((sum, dept) => sum + dept.totalGrossSalary, 0),
+      totalNetPayroll: result.reduce((sum, dept) => sum + dept.totalNetSalary, 0),
+      totalTax: result.reduce((sum, dept) => sum + dept.totalTax, 0),
+      totalPF: result.reduce((sum, dept) => sum + dept.totalPF, 0)
+    };
+    
+    res.status(200).json({
+      success: true,
+      companyStats,
+      departments: result
+    });
+  } catch (error) {
+    console.error("Department payroll stats error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch department payroll statistics", 
+      error: (error as Error).message 
+    });
+  }
+};
