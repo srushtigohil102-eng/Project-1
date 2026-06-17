@@ -1,7 +1,8 @@
 import cors from "cors";
-import express from "express";
+import express, { Request, Response } from "express";
 import authRoutes from "./routes/authRoutes";
 import employeeRoutes from "./routes/employeeRoutes";
+import leaveRoutes from "./routes/leaveRoutes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -12,16 +13,16 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 
 app.use("/auth", authRoutes);
 app.use("/employees", employeeRoutes);
+app.use("/leave", leaveRoutes);
 
-import { Request, Response } from 'express'
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok' })
-})
+app.get("/health", (_req: Request, res: Response) => {
+  res.json({ status: "ok" });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
