@@ -7,7 +7,9 @@ import {
   updatePayroll,
   processPayment,
   deletePayroll,
-  getPayrollSummary
+  getPayrollSummary,
+  calculateNetPay,
+  getEmployeePayrollSummary
 } from "../controllers/payroll.controller";
 import { verifyTokenMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin, requireHR, requireManager } from "../middleware/role.middleware";
@@ -22,6 +24,8 @@ router.get("/employee/:employeeId", getPayrollByEmployee);
 // Manager/HR/Admin routes
 router.get("/", requireManager, getAllPayrollRecords);
 router.get("/summary", requireManager, getPayrollSummary);
+router.get("/calculate-net-pay", requireManager, calculateNetPay);
+router.get("/employee-summary/:employeeId", requireManager, getEmployeePayrollSummary);
 router.get("/:id", requireManager, getPayrollById);
 
 // HR/Admin only

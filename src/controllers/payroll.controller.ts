@@ -264,3 +264,180 @@ export const getPayrollSummary = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ success: false, message: "Failed to fetch payroll summary", error: (error as Error).message });
   }
 };
+
+// Calculate net pay from basic salary, deductions, and allowances
+export const calculateNetPay = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId, month, year } = req.query;
+    
+    const filter: any = {};
+    if (employeeId) filter.employee = employeeId;
+    if (month) filter.month = parseInt(month as string);
+    if (year) filter.year = parseInt(year as string);
+    
+    const result = await Payroll.aggregate([
+      {
+        $match: filter
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          employee: {
+            _id: "$employeeInfo._id",
+            employeeId: "$employeeInfo.employeeId",
+            firstName: "$employeeInfo.firstName",
+            lastName: "$employeeInfo.lastName",
+            fullName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+            designation: "$employeeInfo.designation"
+          },
+          month: 1,
+          year: 1,
+          // Salary Components
+          basicSalary: "$salaryBreakdown.basic",
+          hra: "$salaryBreakdown.hra",
+          da: "$salaryBreakdown.da",
+          ta: "$salaryBreakdown.ta",
+          medicalAllowance: "$salaryBreakdown.medicalAllowance",
+          specialAllowance: "$salaryBreakdown.specialAllowance",
+          bonus: "$salaryBreakdown.bonus",
+          otherEarnings: "$salaryBreakdown.otherEarnings",
+          
+          // Deductions
+          tax: "$deductionBreakdown.tax",
+          providentFund: "$deductionBreakdown.providentFund",
+          professionalTax: "$deductionBreakdown.professionalTax",
+          insurance: "$deductionBreakdown.insurance",
+          loanDeduction: "$deductionBreakdown.loanDeduction",
+          otherDeductions: "$deductionBreakdown.otherDeductions",
+          
+          // Pre-calculated values
+          grossSalary: 1,
+          totalDeductions: 1,
+          netSalary: 1,
+          status: 1,
+          paymentDate: 1,
+          paymentMethod: 1,
+          transactionId: 1
+        }
+      },
+      {
+        $sort: { year: -1, month: -1 }
+      }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+  } catch (error) {
+    console.error("Calculate net pay error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to calculate net pay", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+// Get payroll summary for an employee (year-to-date)
+export const getEmployeePayrollSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId } = req.params;
+    const currentYear = new Date().getFullYear();
+    
+    const result = await Payroll.aggregate([
+      {
+        $match: {
+          employee: new mongoose.Types.ObjectId(employeeId),
+          year: currentYear
+        }
+      },
+      {
+        $group: {
+          _id: "$employee",
+          totalBasicSalary: { $sum: "$salaryBreakdown.basic" },
+          totalGrossSalary: { $sum: "$grossSalary" },
+          totalDeductions: { $sum: "$totalDeductions" },
+          totalNetSalary: { $sum: "$netSalary" },
+          totalTax: { $sum: "$deductionBreakdown.tax" },
+          totalPF: { $sum: "$deductionBreakdown.providentFund" },
+          averageMonthlyNet: { $avg: "$netSalary" },
+          monthsCount: { $sum: 1 },
+          paidMonths: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Paid"] }, 1, 0]
+            }
+          },
+          pendingMonths: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Processed"] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "_id",
+          foreignField: "_id",
+          as: "employeeInfo"
+        }
+      },
+      {
+        $unwind: {
+          path: "$employeeInfo",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          employee: {
+            _id: "$employeeInfo._id",
+            employeeId: "$employeeInfo.employeeId",
+            fullName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+            designation: "$employeeInfo.designation"
+          },
+          year: currentYear,
+          totalBasicSalary: 1,
+          totalGrossSalary: 1,
+          totalDeductions: 1,
+          totalNetSalary: 1,
+          totalTax: 1,
+          totalPF: 1,
+          averageMonthlyNet: { $round: ["$averageMonthlyNet", 2] },
+          monthsCount: 1,
+          paidMonths: 1,
+          pendingMonths: 1
+        }
+      }
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: result.length > 0 ? result[0] : { message: "No payroll records found for this employee" }
+    });
+  } catch (error) {
+    console.error("Employee payroll summary error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch employee payroll summary", 
+      error: (error as Error).message 
+    });
+  }
+};
