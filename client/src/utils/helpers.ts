@@ -47,10 +47,10 @@ export function calculateLeaveDays(fromDate: string, toDate: string): number {
  * Formats a date string (YYYY-MM-DD or ISO timestamp) into "DD MMM YYYY" format (e.g. "15 Jun 2026").
  */
 export function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
+  if (!dateStr) return 'Unknown date';
 
   const date = parseDateStr(dateStr);
-  if (!date) return dateStr;
+  if (!date) return 'Unknown date';
 
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -79,10 +79,13 @@ export function formatDateForInput(dateStr: string): string {
 /**
  * Formats a Date into a relative time string (e.g. "5 minutes ago", "2 days ago").
  * Falls back to formatDate for anything older than 7 days.
+ * Returns "Unknown date" if the Date object is invalid.
  *
  * @param date The Date object to format
  */
 export function formatTimeAgo(date: Date): string {
+  if (isNaN(date.getTime())) return 'Unknown date';
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / 60000);

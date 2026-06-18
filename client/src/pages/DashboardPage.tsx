@@ -5,6 +5,18 @@ import useEmployees from '../hooks/useEmployees';
 import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
 import { formatTimeAgo } from '../utils/helpers';
+
+function safeTimestamp(dateStr: string | undefined | null): number {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+function safeDate(dateStr: string | undefined | null): Date {
+  if (!dateStr) return new Date(0);
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? new Date(0) : d;
+}
 import { showSuccess } from '../utils/toast';
 
 type ActivityType =
@@ -233,7 +245,7 @@ function DashboardPage() {
   const employeesThisMonth = useMemo(() => {
     if (!employees) return 0;
     return employees.filter((e) => {
-      const d = new Date(e.createdAt);
+      const d = safeDate(e.createdAt);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     }).length;
   }, [employees, currentMonth, currentYear]);
@@ -260,30 +272,30 @@ function DashboardPage() {
 
     if (employees) {
       [...employees]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((e) => {
-          items.push({ type: 'employee', name: e.name, action: `joined as ${e.role}`, timestamp: new Date(e.createdAt) });
+          items.push({ type: 'employee', name: e.name, action: `joined as ${e.role}`, timestamp: safeDate(e.createdAt) });
         });
     }
 
     if (leaves) {
       [...leaves]
         .filter((l) => l.status === 'pending')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
-          items.push({ type: 'leave_request', name: l.employeeName, action: `submitted a ${l.leaveType} request`, timestamp: new Date(l.createdAt) });
+          items.push({ type: 'leave_request', name: l.employeeName, action: `submitted a ${l.leaveType} request`, timestamp: safeDate(l.createdAt) });
         });
     }
 
     if (leaves) {
       [...leaves]
         .filter((l) => l.status === 'approved')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
-          items.push({ type: 'leave_approved', name: l.employeeName, action: `'s leave was approved`, timestamp: new Date(l.createdAt) });
+          items.push({ type: 'leave_approved', name: l.employeeName, action: `'s leave was approved`, timestamp: safeDate(l.createdAt) });
         });
     }
 
@@ -301,9 +313,9 @@ function DashboardPage() {
   const leaveOverview = useMemo(() => {
     if (!leaves) return { approved: 0, pending: 0, rejected: 0 };
     return {
-      approved: leaves.filter((l) => l.status === 'approved' && new Date(l.createdAt).getMonth() === currentMonth && new Date(l.createdAt).getFullYear() === currentYear).length,
+      approved: leaves.filter((l) => l.status === 'approved' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
       pending: leaves.filter((l) => l.status === 'pending').length,
-      rejected: leaves.filter((l) => l.status === 'rejected' && new Date(l.createdAt).getMonth() === currentMonth && new Date(l.createdAt).getFullYear() === currentYear).length,
+      rejected: leaves.filter((l) => l.status === 'rejected' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
     };
   }, [leaves, currentMonth, currentYear]);
 

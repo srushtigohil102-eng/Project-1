@@ -12,7 +12,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
   const headers = new Headers(options.headers);
 
   headers.set('Content-Type', 'application/json');
@@ -89,7 +89,7 @@ async function apiFetch<T>(
 }
 
 export async function downloadFile(path: string, filename: string): Promise<void> {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
   const headers = new Headers();
 
   if (token) {
