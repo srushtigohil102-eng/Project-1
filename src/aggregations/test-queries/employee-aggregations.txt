@@ -1,0 +1,222 @@
+// ========================================
+// MONGODB COMPASS TEST QUERIES
+// ========================================
+// Collection: employees
+// Database: hrms_payroll
+// ========================================
+
+// ----------------------------------------
+// 1. GET EMPLOYEES WITH DEPARTMENT & MANAGER
+// ----------------------------------------
+// Endpoint: GET /api/analytics/employees-details
+
+[
+  // Stage 1: Match active employees
+  {
+    $match: {
+      isActive: true,
+      status: "Active"
+    }
+  },
+  
+  // Stage 2: Lookup department
+  {
+    $lookup: {
+      from: "departments",
+      localField: "department",
+      foreignField: "_id",
+      as: "departmentInfo"
+    }
+  },
+  
+  // Stage 3: Unwind department
+  {
+    $unwind: {
+      path: "$departmentInfo",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  
+  // Stage 4: Lookup manager (self-join)
+  {
+    $lookup: {
+      from: "employees",
+      localField: "manager",
+      foreignField: "_id",
+      as: "managerInfo"
+    }
+  },
+  
+  // Stage 5: Unwind manager
+  {
+    $unwind: {
+      path: "$managerInfo",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  
+  // Stage 6: Project final structure
+  {
+    $project: {
+      _id: 1,
+      employeeId: 1,
+      firstName: 1,
+      lastName: 1,
+      fullName: { $concat: ["$firstName", " ", "$lastName"] },
+      email: 1,
+      designation: 1,
+      salary: 1,
+      department: {
+        _id: "$departmentInfo._id",
+        name: "$departmentInfo.name",
+        code: "$departmentInfo.code"
+      },
+      manager: {
+        _id: "$managerInfo._id",
+        fullName: { $concat: ["$managerInfo.firstName", " ", "$managerInfo.lastName"] },
+        designation: "$managerInfo.designation"
+      }
+    }
+  },
+  
+  // Stage 7: Sort
+  {
+    $sort: {
+      "department.name": 1,
+      firstName: 1
+    }
+  }
+]
+
+// Expected Result: 55+ employees with nested department and manager objects
+
+
+// ----------------------------------------
+// 2. GET DEPARTMENT HIERARCHY
+// ----------------------------------------
+// Endpoint: GET /api/analytics/department-hierarchy
+
+[
+  {
+    $match: {
+      isActive: true
+    }
+  },
+  {
+    $lookup: {
+      from: "departments",
+      localField: "department",
+      foreignField: "_id",
+      as: "dept"
+    }
+  },
+  {
+    $unwind: {
+      path: "$dept",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $group: {
+      _id: "$dept._id",
+      departmentName: { $first: "$dept.name" },
+      departmentCode: { $first: "$dept.code" },
+      totalEmployees: { $sum: 1 },
+      employees: {
+        $push: {
+          _id: "$_id",
+          employeeId: "$employeeId",
+          fullName: { $concat: ["$firstName", " ", "$lastName"] },
+          designation: "$designation",
+          salary: "$salary"
+        }
+      }
+    }
+  },
+  {
+    $sort: {
+      departmentName: 1
+    }
+  },
+  {
+    $project: {
+      department: {
+        _id: "$_id",
+        name: "$departmentName",
+        code: "$departmentCode"
+      },
+      totalEmployees: 1,
+      employees: 1
+    }
+  }
+]
+
+// Expected Result: 8 departments with nested employee arrays
+
+
+// ----------------------------------------
+// 3. GET DEPARTMENT REPORTS
+// ----------------------------------------
+// Endpoint: GET /api/analytics/department-reports
+
+[
+  {
+    $match: {
+      isActive: true,
+      status: "Active"
+    }
+  },
+  {
+    $lookup: {
+      from: "departments",
+      localField: "department",
+      foreignField: "_id",
+      as: "dept"
+    }
+  },
+  {
+    $unwind: {
+      path: "$dept",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $group: {
+      _id: "$dept._id",
+      departmentName: { $first: "$dept.name" },
+      departmentCode: { $first: "$dept.code" },
+      totalEmployees: { $sum: 1 },
+      totalSalary: { $sum: "$salary" },
+      averageSalary: { $avg: "$salary" },
+      minSalary: { $min: "$salary" },
+      maxSalary: { $max: "$salary" }
+    }
+  },
+  {
+    $addFields: {
+      averageSalary: { $round: ["$averageSalary", 2] }
+    }
+  },
+  {
+    $sort: {
+      departmentName: 1
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      department: {
+        _id: "$_id",
+        name: "$departmentName",
+        code: "$departmentCode"
+      },
+      totalEmployees: 1,
+      totalSalaryBudget: "$totalSalary",
+      averageSalary: 1,
+      minSalary: 1,
+      maxSalary: 1
+    }
+  }
+]
+
+// Expected Result: Department-wise salary statistics
