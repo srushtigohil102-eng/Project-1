@@ -70,3 +70,58 @@ const MOCK_EMPLOYEES: Employee[] = [
 export const getEmployees = (_req: Request, res: Response): void => {
   res.status(200).json(MOCK_EMPLOYEES);
 };
+
+export const createEmployee = (req: Request, res: Response): void => {
+  const newEmployee: Employee = {
+    id: `emp-${Date.now()}`,
+    ...req.body,
+  };
+
+  MOCK_EMPLOYEES.push(newEmployee);
+
+  res.status(201).json({
+    message: "Employee created successfully",
+    employee: newEmployee,
+  });
+};
+
+export const updateEmployee = (req: Request, res: Response): void => {
+  const { id } = req.params;
+
+  const employee = MOCK_EMPLOYEES.find((emp) => emp.id === id);
+
+  if (!employee) {
+    res.status(404).json({
+      message: "Employee not found",
+    });
+    return;
+  }
+
+  Object.assign(employee, req.body);
+
+  res.status(200).json({
+    message: "Employee updated successfully",
+    employee,
+  });
+};
+
+export const deleteEmployee = (req: Request, res: Response): void => {
+  const { id } = req.params;
+
+  const employeeIndex = MOCK_EMPLOYEES.findIndex(
+    (emp) => emp.id === id
+  );
+
+  if (employeeIndex === -1) {
+    res.status(404).json({
+      message: "Employee not found",
+    });
+    return;
+  }
+
+  MOCK_EMPLOYEES.splice(employeeIndex, 1);
+
+  res.status(200).json({
+    message: "Employee deleted successfully",
+  });
+};
