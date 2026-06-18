@@ -1,6 +1,7 @@
-import React, { type ReactNode } from 'react';
+import React, { type ReactNode, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import { useLeaves } from '../hooks/useLeave';
 import ApiStatus from '../components/ApiStatus';
 
 interface LayoutProps {
@@ -11,13 +12,12 @@ type NavItem = {
   icon: string;
   label: string;
   path: string;
-  badge?: number;
 };
 
 const HR_MANAGER_NAV_ITEMS: NavItem[] = [
   { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
   { icon: '👥', label: 'Employees', path: '/employees' },
-  { icon: '📋', label: 'Leave', path: '/leave', badge: 3 },
+  { icon: '📋', label: 'Leave', path: '/leave' },
   { icon: '💰', label: 'Payroll', path: '/payroll' },
   { icon: '📊', label: 'Reports', path: '/reports' },
   { icon: '⚙️', label: 'Settings', path: '/settings' },
@@ -25,7 +25,7 @@ const HR_MANAGER_NAV_ITEMS: NavItem[] = [
 
 const EMPLOYEE_NAV_ITEMS: NavItem[] = [
   { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
-  { icon: '📋', label: 'Leave', path: '/leave', badge: 3 },
+  { icon: '📋', label: 'Leave', path: '/leave' },
   { icon: '💰', label: 'Payroll', path: '/payroll' },
 ];
 
@@ -46,6 +46,16 @@ function NavigationProgress() {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, isHRManager, logout } = useAuth();
+
+  const { data: leaves, isLoading: leavesLoading } = useLeaves();
+
+  const pendingLeaveCount = useMemo(() => {
+    if (!leaves || !user) return 0;
+    if (isHRManager) {
+      return leaves.filter((l) => l.status === 'pending').length;
+    }
+    return leaves.filter((l) => l.employeeId === user.id && l.status === 'pending').length;
+  }, [leaves, isHRManager, user]);
 
   const navItems = isHRManager ? HR_MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
   const pageName = formatPageName(location.pathname);
@@ -81,9 +91,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 <span aria-hidden="true">{item.icon}</span>
                 <span className="hidden md:inline">{item.label}</span>
-                {item.badge !== undefined && (
+                {item.label === 'Leave' && !leavesLoading && pendingLeaveCount > 0 && (
                   <span className="ml-auto hidden h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white md:flex">
-                    {item.badge}
+                    {pendingLeaveCount > 9 ? '9+' : pendingLeaveCount}
                   </span>
                 )}
               </Link>
