@@ -10,6 +10,7 @@ import payrollRoutes from "./routes/payroll.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 
 
+
 dotenv.config();
 
 const app: Application = express();

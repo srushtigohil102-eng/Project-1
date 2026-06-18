@@ -4,6 +4,19 @@
 
 This document contains all aggregation functions available in the HRMS system. These functions can be wired to API routes by Member A.
 
+## 📂 File Structure
+
+src/
+├── aggregations/
+│ ├── index.ts # Main export file
+│ └── README.md # This documentation
+├── controllers/
+│ ├── analytics.controller.ts # Analytics aggregations
+│ └── payroll.controller.ts # Payroll aggregations
+└── routes/
+├── analytics.routes.ts # Analytics API routes
+└── payroll.routes.ts # Payroll API routes
+
 
 ## 📋 Aggregation Categories
 
@@ -45,3 +58,4 @@ This document contains all aggregation functions available in the HRMS system. T
 1. Import the function from the controller:
 ```typescript
 import { functionName } from "../controllers/controllerName";
+
