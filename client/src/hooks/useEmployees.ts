@@ -18,6 +18,7 @@ function useEmployees() {
   return useQuery<Employee[], Error>({
     queryKey: ['employees'],
     queryFn: getEmployees,
+    staleTime: 30_000,
     refetchInterval: false,
     placeholderData: keepPreviousData,
   });
@@ -30,6 +31,7 @@ export function useEmployee(id: string) {
   return useQuery<Employee, Error>({
     queryKey: ['employees', id],
     queryFn: () => getEmployeeById(id),
+    staleTime: 30_000,
     refetchInterval: false,
     enabled: !!id,
   });

@@ -26,7 +26,7 @@ interface AuthContextValue {
   isLoggedIn: boolean;
   isHRManager: boolean;
   isEmployee: boolean;
-  login: (newToken: string, newUser: UserType) => void;
+  login: (newToken: string, newUser: UserType, rememberMe?: boolean) => void;
   logout: () => void;
 }
 
@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const login = useCallback((newToken: string, newUser: UserType): void => {
-    writeStoredAuth(newToken, newUser);
+  const login = useCallback((newToken: string, newUser: UserType, rememberMe = false): void => {
+    writeStoredAuth(newToken, newUser, rememberMe);
     setToken(newToken);
     setUser(newUser);
   }, []);

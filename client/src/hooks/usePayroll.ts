@@ -16,6 +16,7 @@ export function usePayroll() {
   return useQuery<PayrollRecord[], Error>({
     queryKey: ['payroll'],
     queryFn: getPayroll,
+    staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
 }
@@ -27,6 +28,7 @@ export function usePayrollByEmployee(employeeId: string) {
   return useQuery<PayrollRecord[], Error>({
     queryKey: ['payroll', 'employee', employeeId],
     queryFn: () => getPayrollByEmployee(employeeId),
+    staleTime: 30_000,
     enabled: !!employeeId,
     placeholderData: keepPreviousData,
   });

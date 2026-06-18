@@ -75,14 +75,6 @@ export interface PayrollRecord {
   netPay: number;
 }
 
-export async function checkEmailAvailable(
-  email: string,
-): Promise<{ available: boolean }> {
-  return apiFetch<{ available: boolean }>(
-    `/employees/check-email?email=${encodeURIComponent(email)}`,
-  );
-}
-
 // ==========================================
 // Employee API Functions
 // ==========================================
@@ -107,17 +99,6 @@ export async function createEmployee(
   return toAppEntity<Employee>(data);
 }
 
-export async function updateEmployee(
-  id: string,
-  payload: Partial<CreateEmployeeData>,
-): Promise<Employee> {
-  const data = await apiFetch<MongoDoc>(`/employees/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-  return toAppEntity<Employee>(data);
-}
-
 export async function deleteEmployee(id: string): Promise<void> {
   return apiFetch<void>(`/employees/${id}`, {
     method: 'DELETE',
@@ -131,11 +112,6 @@ export async function deleteEmployee(id: string): Promise<void> {
 export async function getLeaves(): Promise<LeaveRequest[]> {
   const data = await apiFetch<MongoDoc[]>('/leave');
   return data.map(toAppEntity<LeaveRequest>);
-}
-
-export async function getLeaveById(id: string): Promise<LeaveRequest> {
-  const data = await apiFetch<MongoDoc>(`/leave/${id}`);
-  return toAppEntity<LeaveRequest>(data);
 }
 
 export async function applyLeave(payload: ApplyLeaveData): Promise<LeaveRequest> {
@@ -176,10 +152,6 @@ export async function getPayroll(): Promise<PayrollRecord[]> {
 export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]> {
   const data = await apiFetch<MongoDoc[]>(`/payroll/${id}`);
   return data.map(toAppEntity<PayrollRecord>);
-}
-
-export async function downloadPayslip(id: string): Promise<unknown> {
-  return apiFetch<unknown>(`/payroll/${id}/download`);
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {

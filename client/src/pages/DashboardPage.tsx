@@ -4,7 +4,7 @@ import useAuth from '../hooks/useAuth';
 import useEmployees from '../hooks/useEmployees';
 import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
-import { formatTimeAgo, calculateLeaveDays } from '../utils/helpers';
+import { formatTimeAgo, calculateLeaveDays, formatIndianCurrency } from '../utils/helpers';
 import { showSuccess } from '../utils/toast';
 
 function safeTimestamp(dateStr: string | undefined | null): number {
@@ -49,24 +49,6 @@ const MONTH_NAMES = [
 const DAY_NAMES = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
 ];
-
-function formatIndianCurrency(amount: number): string {
-  const numStr = Math.round(amount).toString();
-  if (numStr.length <= 3) return numStr;
-  const lastThree = numStr.slice(-3);
-  const rest = numStr.slice(0, -3);
-  const groups: string[] = [];
-  let remaining = rest;
-  while (remaining.length > 0) {
-    if (remaining.length <= 2) {
-      groups.unshift(remaining);
-      break;
-    }
-    groups.unshift(remaining.slice(-2));
-    remaining = remaining.slice(0, -2);
-  }
-  return groups.join(',') + ',' + lastThree;
-}
 
 function getGreeting(): string {
   const hour = new Date().getHours();

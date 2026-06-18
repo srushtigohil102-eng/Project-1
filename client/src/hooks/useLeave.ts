@@ -15,6 +15,7 @@ export function useLeaves() {
   return useQuery<LeaveRequest[], Error>({
     queryKey: ['leaves'],
     queryFn: getLeaves,
+    staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
 }
