@@ -1,3 +1,7 @@
+# Project-1
+
+<!-- Member C: Frontend Lead — workspace initialized -->
+>>>>>>> a561cb790909236c5d38b2155970eb00c093818c
 # HRMS — Human Resource Management System
 
 > Enterprise HR and Payroll Automation Dashboard  
@@ -29,12 +33,21 @@ A full-stack enterprise dashboard for managing employees, leave requests, payrol
 
 ## Team
 
+<<<<<<< HEAD
 | Member | Role | Focus Area | Branch |
 |--------|------|------------|--------|
 | Member A | Backend Lead | Express API, authentication, middleware | `Karthika` |
 | Member B | Database & PDF | Mongoose schemas, aggregations, PDF generation | `Himanshi` |
 | Member C | **Frontend Lead + Team Lead** | React components, routing, state, UI/UX | `Srushti` |
 | Member D | DevOps Lead | CI/CD pipeline, Docker, deployment | `Anoop` |
+=======
+| Member | Role | Branch |
+|--------|------|--------|
+| Member A | Backend Lead | Karthika |
+| Member B | Database and PDF | Himanshi |
+| Member C | Frontend Lead | Srushti |
+| Member D | DevOps Lead | Anoop |
+>>>>>>> a561cb790909236c5d38b2155970eb00c093818c
 
 ---
 
