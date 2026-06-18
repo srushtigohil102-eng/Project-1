@@ -27,12 +27,17 @@ function isUserType(value: unknown): value is UserType {
   );
 }
 
+function getStorage(): Storage {
+  return localStorage;
+}
+
 export function readStoredAuth(): {
   token: string | null;
   user: UserType | null;
 } {
-  const storedToken = sessionStorage.getItem(TOKEN_KEY);
-  const storedUser = sessionStorage.getItem(USER_KEY);
+  const storage = getStorage();
+  const storedToken = storage.getItem(TOKEN_KEY);
+  const storedUser = storage.getItem(USER_KEY);
 
   if (!storedToken || !storedUser) {
     return { token: null, user: null };
@@ -52,11 +57,23 @@ export function readStoredAuth(): {
 }
 
 export function clearStoredAuth(): void {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(USER_KEY);
+  const storage = getStorage();
+  storage.removeItem(TOKEN_KEY);
+  storage.removeItem(USER_KEY);
 }
 
 export function writeStoredAuth(token: string, user: UserType): void {
-  sessionStorage.setItem(TOKEN_KEY, token);
-  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  const storage = getStorage();
+  storage.setItem(TOKEN_KEY, token);
+  storage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function onAuthChange(callback: () => void): () => void {
+  const handler = (e: StorageEvent) => {
+    if (e.key === TOKEN_KEY || e.key === USER_KEY) {
+      callback();
+    }
+  };
+  window.addEventListener('storage', handler);
+  return () => window.removeEventListener('storage', handler);
 }

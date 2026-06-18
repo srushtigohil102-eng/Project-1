@@ -1,6 +1,8 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import useAuth, { type UserType } from '../hooks/useAuth';
+import apiFetch from '../utils/api';
 
 interface FormData {
   email: string;
@@ -68,6 +70,15 @@ function toUserType(data: LoginSuccessResponse): UserType | null {
 function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  const healthQuery = useQuery({
+    queryKey: ['api-health'],
+    queryFn: () => apiFetch('/health'),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const isApiOffline = healthQuery.isError;
 
   useEffect(() => {
     document.title = 'Login — HRMS';
@@ -245,6 +256,47 @@ function LoginPage() {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        {isApiOffline && (
+          <div className="mt-6 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              <p className="text-xs font-medium text-gray-500">
+                Demo Mode — API Offline
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                login('demo-token-hr', {
+                  id: 'demo-emp-1',
+                  name: 'Rahul Sharma',
+                  email: 'rahul@company.com',
+                  role: 'hr_manager',
+                });
+                navigate('/dashboard');
+              }}
+              className="w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
+            >
+              Continue as HR Manager (Demo)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                login('demo-token-emp', {
+                  id: 'demo-emp-2',
+                  name: 'Priya Nair',
+                  email: 'priya@company.com',
+                  role: 'employee',
+                });
+                navigate('/dashboard');
+              }}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 cursor-pointer"
+            >
+              Continue as Employee (Demo)
+            </button>
+          </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-gray-400">
           HR Management System v1.0
