@@ -7,7 +7,15 @@ import {
   updatePayroll,
   processPayment,
   deletePayroll,
-  getPayrollSummary
+  getPayrollSummary,
+  calculateNetPay,
+  getEmployeePayrollSummary,
+  getDepartmentPayrollStats,
+  getMonthlyPayrollSummary,
+  getTopEarners,
+  getTaxBreakdown,
+  getPayrollTrends,
+  getPayrollComparison
 } from "../controllers/payroll.controller";
 import { verifyTokenMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin, requireHR, requireManager } from "../middleware/role.middleware";
@@ -16,15 +24,23 @@ const router = Router();
 
 router.use(verifyTokenMiddleware);
 
-// Employee can view their own payroll
-router.get("/employee/:employeeId", getPayrollByEmployee);
-
-// Manager/HR/Admin routes
-router.get("/", requireManager, getAllPayrollRecords);
+// ========== PAYROLL AGGREGATION ROUTES (SPECIFIC PATHS FIRST) ==========
+router.get("/calculate-net-pay", requireManager, calculateNetPay);
+router.get("/employee-summary/:employeeId", requireManager, getEmployeePayrollSummary);
+router.get("/department-stats", requireManager, getDepartmentPayrollStats);
+router.get("/monthly-summary", requireManager, getMonthlyPayrollSummary);
+router.get("/top-earners", requireManager, getTopEarners);
+router.get("/tax-breakdown", requireManager, getTaxBreakdown);
+router.get("/trends", requireManager, getPayrollTrends);
+router.get("/comparison", requireManager, getPayrollComparison);
 router.get("/summary", requireManager, getPayrollSummary);
+
+// ========== BASIC CRUD ROUTES ==========
+router.get("/employee/:employeeId", getPayrollByEmployee);
+router.get("/", requireManager, getAllPayrollRecords);
 router.get("/:id", requireManager, getPayrollById);
 
-// HR/Admin only
+// ========== POST/PUT/DELETE ROUTES ==========
 router.post("/generate", requireHR, generatePayroll);
 router.put("/:id", requireHR, updatePayroll);
 router.put("/:id/payment", requireHR, processPayment);
