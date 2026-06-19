@@ -13,7 +13,7 @@
   "lint": "eslint .",
   "test": "jest --runInBand",
   "test": "jest --watch"
-}
+},
   "name": "hrms-payroll-automation",
   "version": "1.0.0",
   "description": "Enterprise HRMS & Payroll Automation Dashboard",
