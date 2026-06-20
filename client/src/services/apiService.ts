@@ -89,6 +89,10 @@ export async function getEmployeeById(id: string): Promise<Employee> {
   return toAppEntity<Employee>(data);
 }
 
+export async function checkEmailAvailable(email: string): Promise<{ available: boolean }> {
+  return apiFetch<{ available: boolean }>(`/employees/check-email?email=${encodeURIComponent(email)}`);
+}
+
 export async function createEmployee(
   payload: CreateEmployeeData,
 ): Promise<Employee> {
