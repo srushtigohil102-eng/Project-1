@@ -1,8 +1,10 @@
 import cors from "cors";
 import express, { Request, Response } from "express";
+
 import authRoutes from "./routes/authRoutes";
 import employeeRoutes from "./routes/employeeRoutes";
 import leaveRoutes from "./routes/leaveRoutes";
+import payrollRoutes from "./routes/payrollRoutes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -19,6 +21,7 @@ app.use(express.json());
 app.use("/auth", authRoutes);
 app.use("/employees", employeeRoutes);
 app.use("/leave", leaveRoutes);
+app.use("/payroll", payrollRoutes);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });
