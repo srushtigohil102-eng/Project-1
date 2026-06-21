@@ -145,22 +145,97 @@ export async function rejectLeave(
 }
 
 // ==========================================
+// Runtime Shape Validation
+// ==========================================
+
+const PAYROLL_RECORD_KEYS: (keyof PayrollRecord)[] = [
+  'id', 'employeeId', 'employeeName', 'month', 'year',
+  'basicSalary', 'allowances', 'deductions', 'netPay',
+];
+
+const NUMBER_FIELDS: Set<keyof PayrollRecord> = new Set([
+  'year', 'basicSalary', 'allowances', 'deductions', 'netPay',
+]);
+
+/**
+ * Runtime type guard that verifies an unknown value matches PayrollRecord.
+ * Logs a warning to the console on first mismatch so integration bugs get
+ * caught early instead of silently corrupting the UI.
+ */
+export function validatePayrollRecord(data: unknown): data is PayrollRecord {
+  if (data === null || data === undefined || typeof data !== 'object') {
+    console.warn('[validatePayrollRecord] expected an object, got', typeof data);
+    return false;
+  }
+
+  const record = data as Record<string, unknown>;
+
+  for (const key of PAYROLL_RECORD_KEYS) {
+    if (!(key in record)) {
+      console.warn(`[validatePayrollRecord] missing field "${key}" in`, record);
+      return false;
+    }
+
+    const value = record[key];
+
+    if (NUMBER_FIELDS.has(key)) {
+      if (typeof value !== 'number' || Number.isNaN(value)) {
+        console.warn(
+          `[validatePayrollRecord] field "${key}" should be a number, got ${typeof value} (${String(value)})`,
+        );
+        return false;
+      }
+    } else if (typeof value !== 'string') {
+      console.warn(
+        `[validatePayrollRecord] field "${key}" should be a string, got ${typeof value} (${String(value)})`,
+      );
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate every record in an array, warn once per invalid record.
+ */
+function validatePayrollRecords(records: unknown[]): void {
+  for (let i = 0; i < records.length; i++) {
+    if (!validatePayrollRecord(records[i])) {
+      console.warn(`[validatePayrollRecord] record at index ${i} failed validation`);
+    }
+  }
+}
+
+// ==========================================
 // Payroll API Functions
 // ==========================================
 
 export async function getPayroll(): Promise<PayrollRecord[]> {
   const data = await apiFetch<MongoDoc[]>('/payroll');
-  return data.map(toAppEntity<PayrollRecord>);
+  const records = data.map(toAppEntity<PayrollRecord>);
+  if (import.meta.env.DEV) {
+    validatePayrollRecords(records);
+  }
+  return records;
 }
 
 export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]> {
   const data = await apiFetch<MongoDoc[]>(`/payroll/${id}`);
-  return data.map(toAppEntity<PayrollRecord>);
+  const records = data.map(toAppEntity<PayrollRecord>);
+  if (import.meta.env.DEV) {
+    validatePayrollRecords(records);
+  }
+  return records;
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {
   const data = await apiFetch<MongoDoc[]>('/payroll/run', {
     method: 'POST',
   });
-  return data.map(toAppEntity<PayrollRecord>);
+  const records = data.map(toAppEntity<PayrollRecord>);
+  if (import.meta.env.DEV) {
+    validatePayrollRecords(records);
+  }
+  return records;
 }

@@ -88,7 +88,29 @@ async function apiFetch<T>(
   return response.json() as Promise<T>;
 }
 
-export async function downloadFile(path: string, filename: string): Promise<void> {
+/**
+ * Extract a filename from the Content-Disposition header, or return null.
+ * Handles both `attachment; filename="..."` and `inline; filename=...` forms.
+ */
+function parseFilenameFromHeader(response: Response): string | null {
+  const disposition = response.headers.get('Content-Disposition');
+  if (!disposition) return null;
+
+  // Match filename*=UTF-8''<encoded>  (RFC 5987) first, then filename="..." or filename=...
+  const rfc5987Match = disposition.match(/filename\*?=(?:UTF-8'')?["]?([^";\n]+)["]?/i);
+  if (rfc5987Match) {
+    try {
+      return decodeURIComponent(rfc5987Match[1].trim());
+    } catch {
+      return rfc5987Match[1].trim();
+    }
+  }
+
+  const fallbackMatch = disposition.match(/filename=["']?([^"';,\n]+)["']?/i);
+  return fallbackMatch ? fallbackMatch[1].trim() : null;
+}
+
+export async function downloadFile(path: string, fallbackFilename: string): Promise<void> {
   const { token } = readStoredAuth();
   const headers = new Headers();
 
@@ -112,6 +134,7 @@ export async function downloadFile(path: string, filename: string): Promise<void
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
+    showError('Cannot connect to server. Check your connection.');
     throw new Error('Cannot connect to server. Check your connection.');
   }
 
@@ -127,14 +150,17 @@ export async function downloadFile(path: string, filename: string): Promise<void
   }
 
   if (response.status === 403) {
+    showError('You do not have permission to perform this action');
     throw new Error('You do not have permission to perform this action');
   }
 
   if (response.status === 404) {
+    showError('The requested resource was not found');
     throw new Error('The requested resource was not found');
   }
 
   if (response.status === 500) {
+    showError('Server error. Please try again later.');
     throw new Error('Server error. Please try again later.');
   }
 
@@ -146,18 +172,56 @@ export async function downloadFile(path: string, filename: string): Promise<void
     } catch {
       // keep default message
     }
+    showError(message);
     throw new Error(message);
   }
 
+  const contentType = response.headers.get('Content-Type') ?? '';
+
+  // If the server returned JSON instead of a PDF, parse it as an error
+  if (contentType.includes('application/json')) {
+    let message = 'Download failed';
+    try {
+      const errorBody = (await response.json()) as { message?: string };
+      message = errorBody.message ?? message;
+    } catch {
+      // ignore
+    }
+    showError(message);
+    throw new Error(message);
+  }
+
+  if (!contentType.includes('application/pdf') && !contentType.includes('application/octet-stream')) {
+    console.warn(
+      `[API] Unexpected Content-Type "${contentType}" for download at ${path}. ` +
+      'Expected application/pdf. The downloaded file may be corrupt.',
+    );
+  }
+
   const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+
+  if (blob.size === 0) {
+    showError('Download failed — server returned an empty file.');
+    throw new Error('Download failed — server returned an empty file.');
+  }
+
+  // Prefer server-provided filename, fall back to the caller's suggestion
+  const filename = parseFilenameFromHeader(response) ?? fallbackFilename;
+
+  try {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to trigger file download';
+    showError(message);
+    throw new Error(message);
+  }
 }
 
 export default apiFetch;
