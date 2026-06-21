@@ -77,6 +77,28 @@ export function formatDateForInput(dateStr: string): string {
 }
 
 /**
+ * Formats a number as Indian-format currency (₹).
+ * For example: 125000 → "₹1,25,000"
+ */
+export function formatIndianCurrency(amount: number): string {
+  const numStr = Math.round(amount).toString();
+  if (numStr.length <= 3) return numStr;
+  const lastThree = numStr.slice(-3);
+  const rest = numStr.slice(0, -3);
+  const groups: string[] = [];
+  let remaining = rest;
+  while (remaining.length > 0) {
+    if (remaining.length <= 2) {
+      groups.unshift(remaining);
+      break;
+    }
+    groups.unshift(remaining.slice(-2));
+    remaining = remaining.slice(0, -2);
+  }
+  return groups.join(',') + ',' + lastThree;
+}
+
+/**
  * Formats a Date into a relative time string (e.g. "5 minutes ago", "2 days ago").
  * Falls back to formatDate for anything older than 7 days.
  * Returns "Unknown date" if the Date object is invalid.

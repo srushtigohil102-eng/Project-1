@@ -91,6 +91,7 @@ function LoginPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleChange =
     (field: keyof FormData) =>
@@ -130,7 +131,7 @@ function LoginPage() {
           return;
         }
 
-        login(data.token, user);
+        login(data.token, user, rememberMe);
         navigate('/dashboard');
         return;
       }
@@ -238,6 +239,8 @@ function LoginPage() {
             <input
               id="remember-me"
               type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             <label

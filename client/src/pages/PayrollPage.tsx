@@ -13,6 +13,7 @@ import {
   showLoadingSuccess,
   showLoadingError,
 } from '../utils/toast';
+import { formatIndianCurrency } from '../utils/helpers';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -20,24 +21,6 @@ const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-
-function formatIndianCurrency(amount: number): string {
-  const numStr = Math.round(amount).toString();
-  if (numStr.length <= 3) return numStr;
-  const lastThree = numStr.slice(-3);
-  const rest = numStr.slice(0, -3);
-  const groups: string[] = [];
-  let remaining = rest;
-  while (remaining.length > 0) {
-    if (remaining.length <= 2) {
-      groups.unshift(remaining);
-      break;
-    }
-    groups.unshift(remaining.slice(-2));
-    remaining = remaining.slice(0, -2);
-  }
-  return groups.join(',') + ',' + lastThree;
-}
 
 function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: string }) {
   return (

@@ -1,4 +1,4 @@
-import { clearStoredAuth, TOKEN_KEY } from './authStorage';
+import { clearStoredAuth, readStoredAuth } from './authStorage';
 import { navigateTo } from './navigation';
 import { showError } from './toast';
 import { API_BASE_URL } from './config';
@@ -12,7 +12,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const { token } = readStoredAuth();
   const headers = new Headers(options.headers);
 
   headers.set('Content-Type', 'application/json');
@@ -89,7 +89,7 @@ async function apiFetch<T>(
 }
 
 export async function downloadFile(path: string, filename: string): Promise<void> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const { token } = readStoredAuth();
   const headers = new Headers();
 
   if (token) {

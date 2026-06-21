@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getLeaves,
   applyLeave,
   approveLeave,
   rejectLeave,
@@ -7,6 +8,13 @@ import {
 import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
+
+// Both roles can view leave requests
+router.get(
+  "/",
+  verifyToken,
+  getLeaves
+);
 
 // Employee can apply for leave
 router.post(
