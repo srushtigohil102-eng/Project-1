@@ -116,3 +116,9 @@ jobs:
           if [ -f "tsconfig.json" ]; then
             npx tsc --noEmit
           fi
+          
+      - name: Run Tests
+        run: npm test
+
+      - name: Build Application
+        run: npm run build
