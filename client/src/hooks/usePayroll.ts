@@ -55,7 +55,8 @@ export function useDownloadPayslip() {
   return useMutation<void, Error, { employeeId: string; month: string; year: string }>({
     mutationFn: async ({ employeeId, month, year }) => {
       const filename = `payslip-${month.toLowerCase()}-${year}.pdf`;
-      await downloadFile(`/payroll/${employeeId}/download`, filename);
+      const params = new URLSearchParams({ month, year });
+      await downloadFile(`/payroll/${employeeId}/download?${params.toString()}`, filename);
     },
   });
 }
