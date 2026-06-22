@@ -54,3 +54,26 @@ export const getPayrollByEmployeeId = (
     netSalary,
   });
 };
+
+export const runPayroll = (
+  _req: Request,
+  res: Response
+): void => {
+  const payrollSummary = payrollData.map((payroll) => ({
+    employeeId: payroll.employeeId,
+    employeeName: payroll.employeeName,
+    basicSalary: payroll.basicSalary,
+    allowances: payroll.allowances,
+    deductions: payroll.deductions,
+    netSalary:
+      payroll.basicSalary +
+      payroll.allowances -
+      payroll.deductions,
+  }));
+
+  res.status(200).json({
+    message: "Payroll processed successfully",
+    totalEmployees: payrollSummary.length,
+    payrollSummary,
+  });
+};

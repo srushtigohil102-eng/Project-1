@@ -1,5 +1,8 @@
 import express from "express";
-import { getPayrollByEmployeeId } from "../controllers/payrollController";
+import {
+  getPayrollByEmployeeId,
+  runPayroll,
+} from "../controllers/payrollController";
 import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
@@ -9,6 +12,13 @@ router.get(
   verifyToken,
   requireRole("hr_manager"),
   getPayrollByEmployeeId
+);
+
+router.post(
+  "/run",
+  verifyToken,
+  requireRole("hr_manager"),
+  runPayroll
 );
 
 export default router;
