@@ -341,4 +341,94 @@ export async function previewFile(
   return url;
 }
 
+/**
+ * Custom error class for when the batch download endpoint returns 404
+ * (not implemented yet on the backend).
+ */
+export class BatchNotImplementedError extends Error {
+  constructor() {
+    super('Batch download is not available yet. Please download payslips individually for now.');
+    this.name = 'BatchNotImplementedError';
+  }
+}
+
+/**
+ * Fetch and download a batch file (zip of payslips) from the server.
+ * Handles 404 specifically — throws BatchNotImplementedError so the
+ * UI can show a friendly message instead of a generic error.
+ */
+export async function downloadBatchFile(
+  path: string,
+  fallbackFilename: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const { token } = readStoredAuth();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] GET ${API_BASE_URL}${path}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'GET',
+      headers,
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new Error('Cannot connect to server. Check your connection.');
+  }
+
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${response.status} GET ${path}`);
+  }
+
+  if (response.status === 404) {
+    throw new BatchNotImplementedError();
+  }
+
+  if (response.status === 401) {
+    clearStoredAuth();
+    showError('Session expired. Please login again.');
+    setTimeout(() => navigateTo('/'), 1500);
+    throw new Error('Session expired. Please login again.');
+  }
+
+  if (response.status === 403) {
+    throw new Error('You do not have permission to perform this action');
+  }
+
+  if (!response.ok) {
+    let msg = 'Batch download failed';
+    try {
+      const body = (await response.json()) as { message?: string };
+      msg = body.message ?? msg;
+    } catch {
+      // keep default
+    }
+    throw new Error(msg);
+  }
+
+  const blob = await response.blob();
+
+  if (blob.size === 0) {
+    throw new Error('Batch download returned an empty file.');
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fallbackFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default apiFetch;

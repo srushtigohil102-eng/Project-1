@@ -5,6 +5,7 @@ import {
   useRunPayroll,
   useDownloadPayslip,
   usePreviewPayslip,
+  useDownloadBatchPayslips,
   type PayrollRecord,
 } from '../hooks/usePayroll';
 import {
@@ -15,6 +16,8 @@ import {
   showLoadingError,
 } from '../utils/toast';
 import { formatIndianCurrency } from '../utils/helpers';
+import useEmployees from '../hooks/useEmployees';
+import { BatchNotImplementedError } from '../utils/api';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -38,6 +41,8 @@ function PayrollPage() {
   const runPayrollMutation = useRunPayroll();
   const downloadPayslipMutation = useDownloadPayslip();
   const previewPayslipMutation = usePreviewPayslip();
+  const downloadBatchMutation = useDownloadBatchPayslips();
+  const employeesQuery = useEmployees();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -45,6 +50,9 @@ function PayrollPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [timeoutMessage, setTimeoutMessage] = useState<string | null>(null);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +120,20 @@ function PayrollPage() {
     () => downloadingId ?? previewingId,
     [downloadingId, previewingId],
   );
+
+  const departments = useMemo(() => {
+    if (!employeesQuery.data) return ['All Departments'];
+    const deps = new Set(employeesQuery.data.map((e) => e.department).filter(Boolean));
+    return ['All Departments', ...Array.from(deps).sort()];
+  }, [employeesQuery.data]);
+
+  const departmentEmployeeCount = useMemo(() => {
+    if (selectedDepartment === 'All Departments') return filteredRecords.length;
+    const deptMap = new Map(
+      (employeesQuery.data ?? []).map((e) => [e.id, e.department]),
+    );
+    return filteredRecords.filter((r) => deptMap.get(r.employeeId) === selectedDepartment).length;
+  }, [filteredRecords, selectedDepartment, employeesQuery.data]);
 
   const handleDownload = useCallback((record: PayrollRecord) => {
     // Abort any previous in-flight download
@@ -197,6 +219,35 @@ function PayrollPage() {
       }
     );
   }, [previewPayslipMutation]);
+
+  const handleBatchConfirm = useCallback(() => {
+    setShowBatchConfirm(false);
+    setShowDepartmentDropdown(false);
+
+    const toastId = showLoading(
+      `Generating batch payslips for ${selectedDepartment === 'All Departments' ? 'all departments' : selectedDepartment}...`,
+    );
+
+    downloadBatchMutation.mutate(
+      {
+        month: MONTH_NAMES[selectedMonth],
+        year: String(selectedYear),
+        department: selectedDepartment === 'All Departments' ? undefined : selectedDepartment,
+      },
+      {
+        onSuccess: () => {
+          showLoadingSuccess(toastId, 'Batch payslips downloaded successfully');
+        },
+        onError: (err) => {
+          if (err instanceof BatchNotImplementedError) {
+            showLoadingError(toastId, err.message);
+            return;
+          }
+          showLoadingError(toastId, err.message || 'Batch download failed');
+        },
+      },
+    );
+  }, [downloadBatchMutation, selectedMonth, selectedYear, selectedDepartment]);
 
   const handleRunPayroll = useCallback(() => {
     const toastId = showLoading(
@@ -343,13 +394,57 @@ function PayrollPage() {
         </div>
 
         {isHRManager && (
-          <button
-            type="button"
-            onClick={() => setShowConfirm(true)}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Run Payroll
-          </button>
+          <div className="flex items-center gap-3">
+            {employeesPaid > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowDepartmentDropdown((prev) => !prev)}
+                  className="rounded-lg border border-blue-300 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                >
+                  Download All Payslips
+                  <svg className="ml-1.5 inline-block h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showDepartmentDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowDepartmentDropdown(false)}
+                    />
+                    <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                      {departments.map((dep) => (
+                        <button
+                          key={dep}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDepartment(dep);
+                            setShowDepartmentDropdown(false);
+                            setShowBatchConfirm(true);
+                          }}
+                          className={`flex w-full items-center px-4 py-2 text-left text-sm transition-colors cursor-pointer ${
+                            dep === selectedDepartment
+                              ? 'bg-blue-50 font-semibold text-blue-700'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {dep}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowConfirm(true)}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              Run Payroll
+            </button>
+          </div>
         )}
       </div>
 
@@ -488,6 +583,26 @@ function PayrollPage() {
         onConfirm={handleRunPayroll}
         onCancel={() => setShowConfirm(false)}
         isLoading={runPayrollMutation.isPending}
+      />
+
+      {/* Confirm Batch Download Dialog */}
+      <ConfirmDialog
+        isOpen={showBatchConfirm}
+        title="Download Payslips"
+        message={
+          <>
+            <p>
+              Download payslips for <strong>{departmentEmployeeCount} employees</strong> in{' '}
+              <strong>{selectedDepartment}</strong>?
+            </p>
+            <p className="mt-1 text-xs text-gray-400">This may take a moment.</p>
+          </>
+        }
+        confirmText="Download All"
+        confirmColor="blue"
+        onConfirm={handleBatchConfirm}
+        onCancel={() => setShowBatchConfirm(false)}
+        isLoading={downloadBatchMutation.isPending}
       />
     </>
   );

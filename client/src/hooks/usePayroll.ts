@@ -5,7 +5,7 @@ import {
   runPayroll,
   type PayrollRecord,
 } from '../services/apiService';
-import { downloadFile, previewFile } from '../utils/api';
+import { downloadFile, previewFile, downloadBatchFile } from '../utils/api';
 
 export type { PayrollRecord };
 
@@ -91,6 +91,32 @@ export function usePreviewPayslip() {
       const params = new URLSearchParams({ month, year });
       const url = await previewFile(`/payroll/${employeeId}/download?${params.toString()}`);
       return url;
+    },
+  });
+}
+
+/**
+ * Hook to batch-download all payslips for a given month/year as a zip file.
+ * Accepts an optional department filter.
+ * Assumes endpoint: GET /payroll/download-batch?month=X&year=Y&department=Z
+ * Confirm exact path with Member B before merging.
+ */
+export function useDownloadBatchPayslips() {
+  return useMutation<
+    void,
+    Error,
+    { month: string; year: string; department?: string }
+  >({
+    mutationFn: async ({ month, year, department }) => {
+      const params = new URLSearchParams({ month, year: String(year) });
+      if (department && department !== 'All Departments') {
+        params.set('department', department);
+      }
+      const depSlug = department && department !== 'All Departments'
+        ? sanitizeName(department)
+        : 'all-departments';
+      const filename = `payroll-${depSlug}-${month.toLowerCase()}-${year}.zip`;
+      await downloadBatchFile(`/payroll/download-batch?${params.toString()}`, filename);
     },
   });
 }
