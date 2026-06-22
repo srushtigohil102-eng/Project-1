@@ -62,6 +62,21 @@ function PayrollPage() {
     document.title = 'Payroll — HRMS';
   }, []);
 
+  // Cleanup in-flight downloads and timers on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      if (timeoutTimerRef.current) {
+        clearTimeout(timeoutTimerRef.current);
+      }
+    };
+  }, []);
+
   const canGoNext = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
