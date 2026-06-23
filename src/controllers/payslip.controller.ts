@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Payroll } from '../models/Payroll';
+// Note: Employee model import not required in this controller (unused)
 import { generatePayslipPDF, IPayslipData } from '../utils/pdfGenerator';
 
 // Generate payslip for an employee
@@ -13,7 +14,7 @@ export const generatePayslip = async (req: Request, res: Response): Promise<void
     if (month) filter.month = parseInt(month as string);
     if (year) filter.year = parseInt(year as string);
 
-    // If no month/year provided, get the latest payroll
+    // Get payroll with employee details
     let payroll;
     if (month && year) {
       payroll = await Payroll.findOne(filter)
@@ -34,20 +35,39 @@ export const generatePayslip = async (req: Request, res: Response): Promise<void
     }
 
     const employee = payroll.employee as any;
-
-    // Prepare payslip data
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                         'July', 'August', 'September', 'October', 'November', 'December'];
-    
+
+    // Prepare payslip data with enhanced structure
     const payslipData: IPayslipData = {
+      // Company Info
+      companyName: 'HRMS Enterprise',
+      companyAddress: '123, Corporate Park, Mumbai - 400001',
+      companyPhone: '+91 98765 43210',
+      companyEmail: 'support@hrms.com',
+      
+      // Employee Info
       employeeName: `${employee.firstName} ${employee.lastName}`,
       employeeId: employee.employeeId,
       designation: employee.designation,
       department: employee.department ? employee.department.name || 'N/A' : 'N/A',
+      joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toLocaleDateString('en-IN') : 'N/A',
+      panNumber: employee.panNumber || 'N/A',
+      bankDetails: employee.bankDetails ? {
+        accountNumber: employee.bankDetails.accountNumber || 'N/A',
+        bankName: employee.bankDetails.bankName || 'N/A',
+        ifscCode: employee.bankDetails.ifscCode || 'N/A',
+      } : undefined,
+      
+      // Payslip Details
       month: monthNames[payroll.month - 1],
       year: payroll.year,
+      paymentDate: payroll.paymentDate ? new Date(payroll.paymentDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+      payPeriod: `${monthNames[payroll.month - 1]} ${payroll.year}`,
+      
+      // Financials
       earnings: [
-        { name: 'Basic Salary', amount: payroll.salaryBreakdown.basic },
+        { name: 'Basic Salary', amount: payroll.salaryBreakdown.basic || 0 },
         { name: 'House Rent Allowance (HRA)', amount: payroll.salaryBreakdown.hra || 0 },
         { name: 'Dearness Allowance (DA)', amount: payroll.salaryBreakdown.da || 0 },
         { name: 'Travel Allowance (TA)', amount: payroll.salaryBreakdown.ta || 0 },
@@ -66,17 +86,8 @@ export const generatePayslip = async (req: Request, res: Response): Promise<void
       grossSalary: payroll.grossSalary,
       totalDeductions: payroll.totalDeductions,
       netSalary: payroll.netSalary,
-      paymentDate: payroll.paymentDate || payroll.updatedAt || new Date(),
+      totalEarnings: payroll.grossSalary,
     };
-
-    // Add bank details if available
-    if (employee.bankDetails) {
-      payslipData.bankDetails = {
-        accountNumber: employee.bankDetails.accountNumber,
-        bankName: employee.bankDetails.bankName,
-        ifscCode: employee.bankDetails.ifscCode,
-      };
-    }
 
     // Generate PDF
     const pdfBuffer = await generatePayslipPDF(payslipData);
@@ -98,7 +109,7 @@ export const generatePayslip = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Get payslip data (JSON) without generating PDF
+// Get payslip data (JSON preview)
 export const getPayslipData = async (req: Request, res: Response): Promise<void> => {
   try {
     const { employeeId } = req.params;
