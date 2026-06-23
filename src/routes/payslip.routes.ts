@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { generatePayslip, getPayslipData } from '../controllers/payslip.controller';
+import { 
+  generatePayslip, 
+  getPayslipData, 
+  downloadPayslip 
+} from '../controllers/payslip.controller';
 import { verifyTokenMiddleware } from '../middleware/auth.middleware';
 import { requireManager } from '../middleware/role.middleware';
 
@@ -7,11 +11,14 @@ const router = Router();
 
 router.use(verifyTokenMiddleware);
 
-// Employee can view their own payslip
+// ===== Member A's Route: Download by Payroll ID =====
+router.get('/download/:id', requireManager, downloadPayslip);
+
+// ===== Employee Payslip Routes =====
 router.get('/employee/:employeeId', requireManager, generatePayslip);
 router.get('/employee/:employeeId/data', requireManager, getPayslipData);
 
-// Admin/HR can generate for any employee
+// ===== Admin/HR Routes =====
 router.get('/:employeeId', requireManager, generatePayslip);
 router.get('/:employeeId/data', requireManager, getPayslipData);
 

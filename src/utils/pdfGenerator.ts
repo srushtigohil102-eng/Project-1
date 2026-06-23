@@ -35,6 +35,7 @@ export interface IPayslipData {
   totalEarnings: number;
 }
 
+// Generate payslip PDF and return as Buffer (for streaming)
 export const generatePayslipPDF = (data: IPayslipData): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     try {
@@ -49,9 +50,17 @@ export const generatePayslipPDF = (data: IPayslipData): Promise<Buffer> => {
       });
       
       const buffers: Buffer[] = [];
+      
+      // Collect PDF data chunks
       doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', reject);
+      
+      // Resolve with complete buffer
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+      
+      doc.on('error', (err) => reject(err));
 
       // ===== COLORS =====
       const primaryColor = '#1a237e';
@@ -60,263 +69,251 @@ export const generatePayslipPDF = (data: IPayslipData): Promise<Buffer> => {
       const borderColor = '#c5cae9';
       const headerBgColor = '#3949ab';
 
+      let yPos = 40;
+
       // ===== COMPANY HEADER =====
-      // Company Logo Placeholder (Left aligned)
-      doc.rect(50, 40, 60, 60).fill(accentColor);
+      doc.rect(50, yPos, 60, 60).fill(accentColor);
       doc.fillColor(primaryColor);
       doc.fontSize(14).font('Helvetica-Bold')
-        .text('HRMS', 70, 55, { align: 'center' })
+        .text('HRMS', 70, yPos + 15, { align: 'center' })
         .fontSize(10).font('Helvetica')
-        .text('Enterprise', 70, 72, { align: 'center' });
+        .text('Enterprise', 70, yPos + 32, { align: 'center' });
 
-      // Company Name (Center)
       doc.fillColor(primaryColor);
       doc.fontSize(18).font('Helvetica-Bold')
-        .text('HRMS ENTERPRISE', 120, 45, { align: 'center' });
+        .text('HRMS ENTERPRISE', 120, yPos + 5, { align: 'center' });
       
       doc.fontSize(9).font('Helvetica')
-        .text('Human Resource Management System', 120, 67, { align: 'center' });
+        .text('Human Resource Management System', 120, yPos + 27, { align: 'center' });
 
-      // Company Details (Right)
       doc.fontSize(8).font('Helvetica')
-        .text('www.hrms.com', 400, 45, { align: 'right' })
-        .text('support@hrms.com', 400, 57, { align: 'right' })
-        .text('+91 98765 43210', 400, 69, { align: 'right' });
+        .text('support@hrms.com', 400, yPos + 5, { align: 'right' })
+        .text('+91 98765 43210', 400, yPos + 17, { align: 'right' });
 
-      // Divider Line
-      doc.moveDown(1);
+      yPos += 75;
+
       doc.strokeColor(primaryColor);
       doc.lineWidth(1.5);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveTo(50, yPos).lineTo(550, yPos).stroke();
       
-      // ===== SALARY SLIP TITLE =====
-      doc.moveDown(0.5);
+      yPos += 15;
+
       doc.fillColor(primaryColor);
       doc.fontSize(16).font('Helvetica-Bold')
-        .text('SALARY SLIP', { align: 'center' });
+        .text('SALARY SLIP', 50, yPos, { align: 'center' });
       
+      yPos += 20;
       doc.fontSize(10).font('Helvetica')
-        .text(`${data.month} ${data.year}`, { align: 'center' });
+        .text(`${data.month} ${data.year}`, 50, yPos, { align: 'center' });
 
-      doc.moveDown(0.5);
+      yPos += 25;
       doc.strokeColor(borderColor);
       doc.lineWidth(1);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveTo(50, yPos).lineTo(550, yPos).stroke();
 
-      // ===== EMPLOYEE INFORMATION SECTION =====
-      doc.moveDown(1);
+      yPos += 20;
+
+      // ===== EMPLOYEE INFORMATION =====
       doc.fillColor(secondaryColor);
       doc.fontSize(11).font('Helvetica-Bold')
-        .text('EMPLOYEE INFORMATION', { underline: true });
-      doc.moveDown(0.3);
+        .text('EMPLOYEE INFORMATION', 50, yPos, { underline: true });
+      
+      yPos += 25;
 
-      // Employee Details Table (2 columns)
       const leftX = 50;
       const rightX = 300;
       const rowHeight = 22;
-      let infoY = doc.y;
 
-      const employeeInfo = [
-        { label: 'Employee Name', value: data.employeeName },
-        { label: 'Employee ID', value: data.employeeId },
-        { label: 'Designation', value: data.designation },
-        { label: 'Department', value: data.department },
-        { label: 'Date of Joining', value: data.joiningDate || 'N/A' },
-        { label: 'PAN Number', value: data.panNumber || 'N/A' },
+      const leftInfo = [
+        { label: 'Employee Name:', value: data.employeeName },
+        { label: 'Employee ID:', value: data.employeeId },
+        { label: 'Designation:', value: data.designation },
       ];
 
-      // Left column
-      const leftColInfo = employeeInfo.slice(0, 3);
-      const rightColInfo = employeeInfo.slice(3);
+      const rightInfo = [
+        { label: 'Department:', value: data.department },
+        { label: 'Date of Joining:', value: data.joiningDate || 'N/A' },
+        { label: 'PAN Number:', value: data.panNumber || 'N/A' },
+      ];
 
-      leftColInfo.forEach((item, index) => {
-        const y = infoY + (index * rowHeight);
-        // Background for alternating rows
-        if (index % 2 === 0) {
-          doc.fillColor('#f5f5f5')
-            .rect(leftX, y - 3, 230, rowHeight).fill();
-        }
-        doc.fillColor('#333')
-          .font('Helvetica-Bold').fontSize(9)
-          .text(item.label + ':', leftX + 5, y)
-          .font('Helvetica')
+      leftInfo.forEach((item, i) => {
+        const y = yPos + (i * rowHeight);
+        doc.fillColor('#333');
+        doc.font('Helvetica-Bold').fontSize(9)
+          .text(item.label, leftX, y);
+        doc.font('Helvetica')
           .text(item.value, leftX + 110, y);
       });
 
-      // Right column
-      rightColInfo.forEach((item, index) => {
-        const y = infoY + (index * rowHeight);
-        if (index % 2 === 0) {
-          doc.fillColor('#f5f5f5')
-            .rect(rightX, y - 3, 250, rowHeight).fill();
-        }
-        doc.fillColor('#333')
-          .font('Helvetica-Bold').fontSize(9)
-          .text(item.label + ':', rightX + 5, y)
-          .font('Helvetica')
-          .text(item.value, rightX + 105, y);
+      rightInfo.forEach((item, i) => {
+        const y = yPos + (i * rowHeight);
+        doc.fillColor('#333');
+        doc.font('Helvetica-Bold').fontSize(9)
+          .text(item.label, rightX, y);
+        doc.font('Helvetica')
+          .text(item.value, rightX + 100, y);
       });
 
-      // Bank Details
+      yPos += (leftInfo.length * rowHeight) + 5;
+
       if (data.bankDetails) {
-        const bankY = infoY + (3 * rowHeight);
-        doc.fillColor('#f5f5f5')
-          .rect(leftX, bankY - 3, 480, rowHeight).fill();
-        doc.fillColor('#333')
-          .font('Helvetica-Bold').fontSize(9)
-          .text('Bank Details:', leftX + 5, bankY)
-          .font('Helvetica')
+        doc.fillColor('#333');
+        doc.font('Helvetica-Bold').fontSize(9)
+          .text('Bank Details:', leftX, yPos);
+        doc.font('Helvetica')
           .text(
             `${data.bankDetails.bankName} | Acct: ${data.bankDetails.accountNumber} | IFSC: ${data.bankDetails.ifscCode}`,
-            leftX + 110, bankY
+            leftX + 95, yPos
           );
+        yPos += 25;
+      } else {
+        yPos += 5;
       }
 
-      doc.moveDown(1.5);
       doc.strokeColor(borderColor);
       doc.lineWidth(1);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveTo(50, yPos).lineTo(550, yPos).stroke();
 
-      // ===== EARNINGS SECTION =====
-      doc.moveDown(1);
+      yPos += 20;
+
+      // ===== EARNINGS =====
       doc.fillColor(secondaryColor);
       doc.fontSize(11).font('Helvetica-Bold')
-        .text('EARNINGS', { underline: true });
-      doc.moveDown(0.3);
+        .text('EARNINGS', 50, yPos, { underline: true });
+      
+      yPos += 25;
 
-      // Earnings Table Header
-      const earnHeaderY = doc.y;
+      const earnStartY = yPos;
       doc.fillColor(headerBgColor);
-      doc.rect(50, earnHeaderY - 3, 500, 25).fill();
+      doc.rect(50, earnStartY, 350, 22).fill();
+      doc.rect(400, earnStartY, 150, 22).fill();
       
       doc.fillColor('#ffffff');
-      doc.font('Helvetica-Bold').fontSize(10)
-        .text('Description', 55, earnHeaderY + 2)
-        .text('Amount (₹)', 450, earnHeaderY + 2, { align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(9)
+        .text('Description', 55, earnStartY + 5)
+        .text('Amount (₹)', 450, earnStartY + 5, { align: 'right' });
 
-      doc.moveDown(0.8);
+      yPos = earnStartY + 22;
       let earnTotal = 0;
       
-      data.earnings.forEach((item, index) => {
-        const y = doc.y;
-        // Alternate row background
-        if (index % 2 === 0) {
+      data.earnings.forEach((item, i) => {
+        const y = yPos;
+        if (i % 2 === 0) {
           doc.fillColor('#fafafa')
-            .rect(50, y - 2, 500, 22).fill();
+            .rect(50, y, 500, 20).fill();
         }
         doc.fillColor('#333');
         doc.font('Helvetica').fontSize(9)
-          .text(item.name, 55, y)
-          .text(item.amount.toLocaleString('en-IN'), 450, y, { align: 'right' });
+          .text(item.name, 55, y + 3)
+          .text(item.amount.toLocaleString('en-IN'), 450, y + 3, { align: 'right' });
         earnTotal += item.amount;
-        doc.moveDown(0.6);
+        yPos += 20;
       });
 
-      // Gross Salary (Earnings Total)
-      doc.moveDown(0.2);
+      yPos += 5;
       doc.fillColor('#e8f5e9');
-      doc.rect(50, doc.y - 3, 500, 28).fill();
+      doc.rect(50, yPos, 350, 25).fill();
+      doc.rect(400, yPos, 150, 25).fill();
+      
       doc.fillColor('#2e7d32');
-      doc.font('Helvetica-Bold').fontSize(11)
-        .text('Total Earnings (Gross Salary)', 55, doc.y)
-        .text(earnTotal.toLocaleString('en-IN'), 450, doc.y, { align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(10)
+        .text('Total Earnings (Gross Salary)', 55, yPos + 6)
+        .text(earnTotal.toLocaleString('en-IN'), 450, yPos + 6, { align: 'right' });
 
-      doc.moveDown(1.2);
+      yPos += 30;
       doc.strokeColor(borderColor);
       doc.lineWidth(1);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveTo(50, yPos).lineTo(550, yPos).stroke();
 
-      // ===== DEDUCTIONS SECTION =====
-      doc.moveDown(1);
+      yPos += 20;
+
+      // ===== DEDUCTIONS =====
       doc.fillColor(secondaryColor);
       doc.fontSize(11).font('Helvetica-Bold')
-        .text('DEDUCTIONS', { underline: true });
-      doc.moveDown(0.3);
+        .text('DEDUCTIONS', 50, yPos, { underline: true });
+      
+      yPos += 25;
 
-      // Deductions Table Header
-      const dedHeaderY = doc.y;
+      const dedStartY = yPos;
       doc.fillColor(headerBgColor);
-      doc.rect(50, dedHeaderY - 3, 500, 25).fill();
+      doc.rect(50, dedStartY, 350, 22).fill();
+      doc.rect(400, dedStartY, 150, 22).fill();
       
       doc.fillColor('#ffffff');
-      doc.font('Helvetica-Bold').fontSize(10)
-        .text('Description', 55, dedHeaderY + 2)
-        .text('Amount (₹)', 450, dedHeaderY + 2, { align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(9)
+        .text('Description', 55, dedStartY + 5)
+        .text('Amount (₹)', 450, dedStartY + 5, { align: 'right' });
 
-      doc.moveDown(0.8);
+      yPos = dedStartY + 22;
       let dedTotal = 0;
       
-      data.deductions.forEach((item, index) => {
-        const y = doc.y;
-        if (index % 2 === 0) {
+      data.deductions.forEach((item, i) => {
+        const y = yPos;
+        if (i % 2 === 0) {
           doc.fillColor('#fafafa')
-            .rect(50, y - 2, 500, 22).fill();
+            .rect(50, y, 500, 20).fill();
         }
         doc.fillColor('#333');
         doc.font('Helvetica').fontSize(9)
-          .text(item.name, 55, y)
-          .text(item.amount.toLocaleString('en-IN'), 450, y, { align: 'right' });
+          .text(item.name, 55, y + 3)
+          .text(item.amount.toLocaleString('en-IN'), 450, y + 3, { align: 'right' });
         dedTotal += item.amount;
-        doc.moveDown(0.6);
+        yPos += 20;
       });
 
-      // Total Deductions
-      doc.moveDown(0.2);
+      yPos += 5;
       doc.fillColor('#fce4ec');
-      doc.rect(50, doc.y - 3, 500, 28).fill();
-      doc.fillColor('#c62828');
-      doc.font('Helvetica-Bold').fontSize(11)
-        .text('Total Deductions', 55, doc.y)
-        .text(dedTotal.toLocaleString('en-IN'), 450, doc.y, { align: 'right' });
-
-      doc.moveDown(1.2);
-      doc.strokeColor(borderColor);
-      doc.lineWidth(1);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-
-      // ===== NET PAY SECTION =====
-      doc.moveDown(0.8);
-      const netY = doc.y;
+      doc.rect(50, yPos, 350, 25).fill();
+      doc.rect(400, yPos, 150, 25).fill();
       
-      // Net Salary Box
+      doc.fillColor('#c62828');
+      doc.font('Helvetica-Bold').fontSize(10)
+        .text('Total Deductions', 55, yPos + 6)
+        .text(dedTotal.toLocaleString('en-IN'), 450, yPos + 6, { align: 'right' });
+
+      yPos += 35;
+
+      // ===== NET SALARY =====
+      doc.strokeColor('#1a237e');
+      doc.lineWidth(2);
+      doc.rect(50, yPos, 500, 50).stroke();
+      
       doc.fillColor('#1a237e');
-      doc.rect(50, netY, 500, 45).fill();
+      doc.rect(50, yPos, 500, 50).fill();
       
       doc.fillColor('#ffffff');
       doc.fontSize(16).font('Helvetica-Bold')
-        .text('NET SALARY', 60, netY + 10);
+        .text('NET SALARY', 60, yPos + 14);
       
       doc.fontSize(18)
-        .text(`₹ ${data.netSalary.toLocaleString('en-IN')}`, 400, netY + 10, { align: 'right' });
+        .text(`₹ ${data.netSalary.toLocaleString('en-IN')}`, 400, yPos + 12, { align: 'right' });
 
-      doc.moveDown(2);
+      yPos += 65;
 
       // ===== AMOUNT IN WORDS =====
       doc.fillColor('#333');
       doc.fontSize(10).font('Helvetica')
-        .text(`Amount in Words: ${numberToWords(data.netSalary)}`, { align: 'center' });
+        .text(`Amount in Words: ${numberToWords(data.netSalary)}`, 50, yPos, { align: 'center' });
+
+      yPos += 25;
 
       // ===== PAYMENT DETAILS =====
-      doc.moveDown(0.5);
       doc.fontSize(9).font('Helvetica')
-        .text(`Payment Date: ${data.paymentDate}`, { align: 'center' })
-        .text(`Pay Period: ${data.payPeriod || `${data.month} ${data.year}`}`, { align: 'center' });
+        .text(`Payment Date: ${data.paymentDate}`, 50, yPos, { align: 'center' })
+        .text(`Pay Period: ${data.payPeriod || `${data.month} ${data.year}`}`, 50, yPos + 15, { align: 'center' });
+
+      yPos += 45;
 
       // ===== FOOTER =====
-      doc.moveDown(1);
       doc.strokeColor(borderColor);
       doc.lineWidth(1);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveTo(50, yPos).lineTo(550, yPos).stroke();
 
-      doc.moveDown(0.3);
+      yPos += 15;
       doc.fillColor('#888');
       doc.fontSize(8).font('Helvetica')
-        .text('This is a computer generated document. No signature required.', { align: 'center' })
-        .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
-
-      // Watermark (optional - faint background)
-      // doc.fillColor('#f0f0f0').fontSize(60).font('Helvetica-Bold')
-      //   .text('PAID', 200, 400, { align: 'center', opacity: 0.1 });
+        .text('This is a computer generated document. No signature required.', 50, yPos, { align: 'center' })
+        .text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 50, yPos + 15, { align: 'center' });
 
       doc.end();
     } catch (error) {
@@ -327,6 +324,8 @@ export const generatePayslipPDF = (data: IPayslipData): Promise<Buffer> => {
 
 // Helper: Convert number to words
 function numberToWords(num: number): string {
+  if (num === 0) return 'Zero Rupees Only';
+  
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
     'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
