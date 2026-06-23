@@ -8,6 +8,7 @@ import departmentRoutes from "./routes/department.routes";
 import leaveRoutes from "./routes/leave.routes";
 import payrollRoutes from "./routes/payroll.routes";
 import analyticsRoutes from "./routes/analytics.routes";
+import payslipRoutes from "./routes/payslip.routes";
 
 
 
@@ -26,6 +27,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/payslip", payslipRoutes);
 
 
 app.get("/", (_req: Request, res: Response) => {
