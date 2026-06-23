@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import PDFDocument from "pdfkit";
 
 interface Payroll {
   employeeId: string;
@@ -76,4 +77,50 @@ export const runPayroll = (
     totalEmployees: payrollSummary.length,
     payrollSummary,
   });
+};
+
+export const downloadPayrollPdf = (
+  req: Request,
+  res: Response
+): void => {
+  const payroll = payrollData.find(
+    (item) => item.employeeId === req.params.employeeId
+  );
+
+  if (!payroll) {
+    res.status(404).json({
+      message: "Payroll record not found",
+    });
+    return;
+  }
+
+  const netSalary =
+    payroll.basicSalary +
+    payroll.allowances -
+    payroll.deductions;
+
+  const doc = new PDFDocument();
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=${payroll.employeeId}-payroll.pdf`
+  );
+
+  doc.pipe(res);
+
+  doc.fontSize(20).text("Payroll Report", {
+    align: "center",
+  });
+
+  doc.moveDown();
+
+  doc.text(`Employee ID: ${payroll.employeeId}`);
+  doc.text(`Employee Name: ${payroll.employeeName}`);
+  doc.text(`Basic Salary: ₹${payroll.basicSalary}`);
+  doc.text(`Allowances: ₹${payroll.allowances}`);
+  doc.text(`Deductions: ₹${payroll.deductions}`);
+  doc.text(`Net Salary: ₹${netSalary}`);
+
+  doc.end();
 };

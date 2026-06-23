@@ -2,6 +2,7 @@ import express from "express";
 import {
   getPayrollByEmployeeId,
   runPayroll,
+  downloadPayrollPdf,
 } from "../controllers/payrollController";
 import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
@@ -19,6 +20,13 @@ router.post(
   verifyToken,
   requireRole("hr_manager"),
   runPayroll
+);
+
+router.get(
+  "/:employeeId/download",
+  verifyToken,
+  requireRole("hr_manager"),
+  downloadPayrollPdf
 );
 
 export default router;
