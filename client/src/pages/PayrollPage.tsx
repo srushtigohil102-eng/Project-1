@@ -1,9 +1,11 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import useAuth from '../hooks/useAuth';
 import {
   usePayroll,
   useRunPayroll,
   useDownloadPayslip,
+  usePreviewPayslip,
+  useDownloadBatchPayslips,
   type PayrollRecord,
 } from '../hooks/usePayroll';
 import {
@@ -14,6 +16,8 @@ import {
   showLoadingError,
 } from '../utils/toast';
 import { formatIndianCurrency } from '../utils/helpers';
+import useEmployees from '../hooks/useEmployees';
+import { BatchNotImplementedError } from '../utils/api';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -36,14 +40,41 @@ function PayrollPage() {
   const { data: payrollData, isLoading, isError, error, refetch } = usePayroll();
   const runPayrollMutation = useRunPayroll();
   const downloadPayslipMutation = useDownloadPayslip();
+  const previewPayslipMutation = usePreviewPayslip();
+  const downloadBatchMutation = useDownloadBatchPayslips();
+  const employeesQuery = useEmployees();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showConfirm, setShowConfirm] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [timeoutMessage, setTimeoutMessage] = useState<string | null>(null);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
+  const [showBatchConfirm, setShowBatchConfirm] = useState(false);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     document.title = 'Payroll — HRMS';
+  }, []);
+
+  // Cleanup in-flight downloads and timers on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      if (timeoutTimerRef.current) {
+        clearTimeout(timeoutTimerRef.current);
+      }
+    };
   }, []);
 
   const canGoNext = useMemo(() => {
@@ -95,9 +126,96 @@ function PayrollPage() {
   const employeesPaid = filteredRecords.length;
   const processingStatus = employeesPaid > 0 ? 'Completed' : 'Pending';
 
+  const hasPayrollData = useMemo(
+    () => Array.isArray(payrollData) && payrollData.length > 0,
+    [payrollData],
+  );
+
+  const isBusyId = useMemo(
+    () => downloadingId ?? previewingId,
+    [downloadingId, previewingId],
+  );
+
+  const departments = useMemo(() => {
+    if (!employeesQuery.data) return ['All Departments'];
+    const deps = new Set(employeesQuery.data.map((e) => e.department).filter(Boolean));
+    return ['All Departments', ...Array.from(deps).sort()];
+  }, [employeesQuery.data]);
+
+  const departmentEmployeeCount = useMemo(() => {
+    if (selectedDepartment === 'All Departments') return filteredRecords.length;
+    const deptMap = new Map(
+      (employeesQuery.data ?? []).map((e) => [e.id, e.department]),
+    );
+    return filteredRecords.filter((r) => deptMap.get(r.employeeId) === selectedDepartment).length;
+  }, [filteredRecords, selectedDepartment, employeesQuery.data]);
+
   const handleDownload = useCallback((record: PayrollRecord) => {
+    // Abort any previous in-flight download
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    if (timeoutTimerRef.current) {
+      clearTimeout(timeoutTimerRef.current);
+      timeoutTimerRef.current = null;
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setDownloadingId(record.id);
+    setTimeoutMessage(null);
+
+    warningTimerRef.current = setTimeout(() => {
+      setTimeoutMessage('Still generating, this may take a moment...');
+    }, 10_000);
+
+    timeoutTimerRef.current = setTimeout(() => {
+      abortController.abort();
+      setTimeoutMessage('Download timed out. Please try again.');
+    }, 30_000);
+
     downloadPayslipMutation.mutate(
+      {
+        employeeId: record.employeeId,
+        month: record.month,
+        year: String(record.year),
+        employeeName: record.employeeName,
+        signal: abortController.signal,
+      },
+      {
+        onSuccess: () => {
+          showSuccess('Payslip downloaded successfully');
+          setTimeoutMessage(null);
+        },
+        onError: (err) => {
+          if (err.name === 'AbortError') return;
+          showError(err.message || 'Failed to download payslip');
+          setTimeoutMessage(null);
+        },
+        onSettled: () => {
+          setDownloadingId(null);
+          if (warningTimerRef.current) {
+            clearTimeout(warningTimerRef.current);
+            warningTimerRef.current = null;
+          }
+          if (timeoutTimerRef.current) {
+            clearTimeout(timeoutTimerRef.current);
+            timeoutTimerRef.current = null;
+          }
+          abortControllerRef.current = null;
+        },
+      }
+    );
+  }, [downloadPayslipMutation]);
+
+  const handlePreview = useCallback((record: PayrollRecord) => {
+    setPreviewingId(record.id);
+    previewPayslipMutation.mutate(
       {
         employeeId: record.employeeId,
         month: record.month,
@@ -105,17 +223,46 @@ function PayrollPage() {
       },
       {
         onSuccess: () => {
-          showSuccess('Payslip downloaded successfully');
+          showSuccess('Payslip preview opened');
         },
         onError: (err) => {
-          showError(err.message || 'Failed to download payslip');
+          showError(err.message || 'Failed to preview payslip');
         },
         onSettled: () => {
-          setDownloadingId(null);
+          setPreviewingId(null);
         },
       }
     );
-  }, [downloadPayslipMutation]);
+  }, [previewPayslipMutation]);
+
+  const handleBatchConfirm = useCallback(() => {
+    setShowBatchConfirm(false);
+    setShowDepartmentDropdown(false);
+
+    const toastId = showLoading(
+      `Generating batch payslips for ${selectedDepartment === 'All Departments' ? 'all departments' : selectedDepartment}...`,
+    );
+
+    downloadBatchMutation.mutate(
+      {
+        month: MONTH_NAMES[selectedMonth],
+        year: String(selectedYear),
+        department: selectedDepartment === 'All Departments' ? undefined : selectedDepartment,
+      },
+      {
+        onSuccess: () => {
+          showLoadingSuccess(toastId, 'Batch payslips downloaded successfully');
+        },
+        onError: (err) => {
+          if (err instanceof BatchNotImplementedError) {
+            showLoadingError(toastId, err.message);
+            return;
+          }
+          showLoadingError(toastId, err.message || 'Batch download failed');
+        },
+      },
+    );
+  }, [downloadBatchMutation, selectedMonth, selectedYear, selectedDepartment]);
 
   const handleRunPayroll = useCallback(() => {
     const toastId = showLoading(
@@ -196,6 +343,33 @@ function PayrollPage() {
     );
   }
 
+  function renderMonthNotProcessedState() {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-6 py-12">
+        <svg className="h-10 w-10 text-amber-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-sm font-semibold text-amber-700 mb-1">
+          No payroll has been processed for {currentMonthLabel} yet
+        </p>
+        <p className="text-xs text-amber-500">
+          {isHRManager
+            ? 'Click Run Payroll to generate it.'
+            : 'Please wait for HR to process payroll for this period.'}
+        </p>
+        {isHRManager && (
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            className="mt-4 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition-colors cursor-pointer"
+          >
+            Run Payroll
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <header className="mb-6">
@@ -235,13 +409,57 @@ function PayrollPage() {
         </div>
 
         {isHRManager && (
-          <button
-            type="button"
-            onClick={() => setShowConfirm(true)}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            Run Payroll
-          </button>
+          <div className="flex items-center gap-3">
+            {employeesPaid > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowDepartmentDropdown((prev) => !prev)}
+                  className="rounded-lg border border-blue-300 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                >
+                  Download All Payslips
+                  <svg className="ml-1.5 inline-block h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showDepartmentDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowDepartmentDropdown(false)}
+                    />
+                    <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                      {departments.map((dep) => (
+                        <button
+                          key={dep}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDepartment(dep);
+                            setShowDepartmentDropdown(false);
+                            setShowBatchConfirm(true);
+                          }}
+                          className={`flex w-full items-center px-4 py-2 text-left text-sm transition-colors cursor-pointer ${
+                            dep === selectedDepartment
+                              ? 'bg-blue-50 font-semibold text-blue-700'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {dep}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowConfirm(true)}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors cursor-pointer"
+            >
+              Run Payroll
+            </button>
+          </div>
         )}
       </div>
 
@@ -270,6 +488,8 @@ function PayrollPage() {
         renderSkeletonRows()
       ) : isError ? (
         renderErrorState()
+      ) : hasPayrollData && filteredRecords.length === 0 ? (
+        renderMonthNotProcessedState()
       ) : visibleRecords.length === 0 ? (
         renderEmptyState()
       ) : (
@@ -316,21 +536,45 @@ function PayrollPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(record)}
-                      disabled={downloadingId === record.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
+                    <div className="flex items-center justify-center gap-2">
                       {downloadingId === record.id ? (
-                        <SpinnerIcon className="h-3.5 w-3.5 animate-spin text-white" />
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white opacity-50 cursor-not-allowed"
+                          >
+                            <SpinnerIcon className="h-3.5 w-3.5 animate-spin text-white" />
+                            Downloading...
+                          </button>
+                          {timeoutMessage && (
+                            <span className="text-xs text-amber-600 max-w-40">{timeoutMessage}</span>
+                          )}
+                        </div>
                       ) : (
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(record)}
+                            disabled={isBusyId === record.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Download
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePreview(record)}
+                            disabled={isBusyId === record.id}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {previewingId === record.id ? 'Loading...' : 'Preview'}
+                          </button>
+                        </>
                       )}
-                      {downloadingId === record.id ? 'Downloading...' : 'Download'}
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -354,6 +598,26 @@ function PayrollPage() {
         onConfirm={handleRunPayroll}
         onCancel={() => setShowConfirm(false)}
         isLoading={runPayrollMutation.isPending}
+      />
+
+      {/* Confirm Batch Download Dialog */}
+      <ConfirmDialog
+        isOpen={showBatchConfirm}
+        title="Download Payslips"
+        message={
+          <>
+            <p>
+              Download payslips for <strong>{departmentEmployeeCount} employees</strong> in{' '}
+              <strong>{selectedDepartment}</strong>?
+            </p>
+            <p className="mt-1 text-xs text-gray-400">This may take a moment.</p>
+          </>
+        }
+        confirmText="Download All"
+        confirmColor="blue"
+        onConfirm={handleBatchConfirm}
+        onCancel={() => setShowBatchConfirm(false)}
+        isLoading={downloadBatchMutation.isPending}
       />
     </>
   );
