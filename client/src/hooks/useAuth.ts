@@ -96,4 +96,3 @@ function useAuth(): AuthContextValue {
 }
 
 export default useAuth;
-}

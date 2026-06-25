@@ -7,7 +7,7 @@
 > Enterprise HR and Payroll Automation Dashboard  
 > Infotact Solutions SDE Internship — Project 3
 
-`[CI: Passing]` `[License: MIT]` `[Status: Week 2 Complete]`
+`[CI: Passing]` `[License: MIT]` `[Status: Week 3 Complete]`
 
 ---
 
@@ -350,8 +350,12 @@ When the API is offline, the login page shows demo buttons that log in with pre-
 |---------|--------|
 | Month/year navigation | ✅ Done |
 | Payroll table with employee details | ✅ Done |
-| PDF payslip download | ✅ Done |
-| Run payroll (HR Manager only) | ✅ Done |
+| Real payroll data with Indian rupee formatting | ✅ Done |
+| Payroll summary footer with total disbursement | ✅ Done |
+| Run Payroll shows employee count and total amount | ✅ Done |
+| PDF payslip generation with pdfkit | ✅ Done |
+| PDF payslip download with preview option | ✅ Done |
+| Batch payslip download with graceful fallback | ✅ Done |
 | Role-filtered records (Employee sees own) | ✅ Done |
 | HR summary cards | ✅ Done |
 | Payroll confirmation dialog | ✅ Done |
@@ -375,6 +379,22 @@ When the API is offline, the login page shows demo buttons that log in with pre-
 | Quick actions per role | ✅ Done |
 | Skeleton loading + error + empty states | ✅ Done |
 | Partial-error warning banner | ✅ Done |
+
+---
+
+### DevOps & Deployment
+
+| Feature | Status |
+|---------|--------|
+| Backend Dockerfile (multi-stage build) | ✅ Done |
+| Frontend Dockerfile (Vite + nginx) | ✅ Done |
+| docker-compose.yml for full-stack setup | ✅ Done |
+
+### Documentation
+
+| Feature | Status |
+|---------|--------|
+| Work Distribution Document created and submitted | ✅ Done |
 
 ---
 
@@ -432,6 +452,25 @@ These issues were found during Week 2 code audit and fixed:
 | 7 | **formatIndianCurrency duplicated** — Same function in DashboardPage and PayrollPage | Extracted to `utils/helpers.ts` | ✅ Fixed |
 | 8 | **No staleTime on React Query** — Data refetched on every component mount | Added `staleTime: 30000` (30s) to all queries | ✅ Fixed |
 | 9 | **Dead code in apiService.ts** — 4 exported but unused functions | Removed `checkEmailAvailable`, `updateEmployee`, `getLeaveById`, `downloadPayslip` | ✅ Fixed |
+| 10 | **Table column widths jumping during loading** — Columns resized after data loaded | Fixed layout using `table-layout: fixed` with defined column widths | ✅ Fixed |
+| 11 | **Empty fields showing blank** — No visual distinction between empty and missing data | Standardized empty field display with em dash (`—`) | ✅ Fixed |
+| 12 | **Long department names breaking table layout** — Text overflow caused misalignment | Added CSS text truncation with tooltip on hover | ✅ Fixed |
+
+---
+
+## Week 3 Highlights
+
+### 1. Real Backend Integration Completed and Tested
+All frontend pages now connect to live MongoDB data through the Express API. Payroll, employee, leave, and dashboard pages verified end-to-end with real backend endpoints. Demo mode remains as a fallback when the API is unavailable.
+
+### 2. PDF Payslip Generation and Download Working
+The backend generates professional PDF payslips using pdfkit, including company header, employee details, earnings and deductions tables, and net pay. The frontend downloads payslips with Content-Type validation, timeout handling, and an option to preview in a new browser tab.
+
+### 3. UI Polish and Performance Improvements
+Added page fade-in transitions, a reusable LoadingSpinner component, text truncation with tooltips, standardized empty field display, and stable table column widths. Batch payslip download includes a graceful fallback when the endpoint is not ready.
+
+### 4. Docker Setup for Deployment
+Multi-stage Dockerfiles for both backend (Node.js) and frontend (Vite + nginx) were created along with a docker-compose.yml for full-stack orchestration. The entire application was tested end-to-end running in containers.
 
 ---
 
@@ -441,8 +480,8 @@ These issues were found during Week 2 code audit and fixed:
 |------|-------|--------|-----------------|
 | **Week 1** | 5th – 11th | ✅ Complete | JWT auth, RBAC, employee table, React Query, sidebar layout |
 | **Week 2** | 12th – 18th | ✅ Complete | Leave lifecycle, multi-step onboarding, payroll + PDF, dashboard with live data, bulk actions, optimistic updates, RBAC audit fixes |
-| **Week 3** | 19th – 25th | ⏳ In Progress | Mongoose aggregations, reports, GitHub Actions CI, Docker, payslip email, pagination, exporting |
-| **Week 4** | 26th – 2nd | ⏳ Planned | Final polish, accessibility audit, deployment, presentation |
+| **Week 3** | 19th – 25th | ✅ Complete | Real backend integration, PDF payslip generation, Docker containerization, UI polish, batch payslip download, work distribution document |
+| **Week 4** | 26th – 2nd | ⏳ Upcoming | Full mobile responsive redesign, advanced reporting and analytics, production cloud deployment, final presentation |
 
 ---
 
@@ -470,12 +509,15 @@ Types: feat, fix, refactor, chore, docs, style, test
 
 ## Known Limitations
 
-- **No server-side pagination** — Employee and leave tables paginate client-side. With 500+ records, performance will degrade. Planned for Week 3.
-- **No automated tests** — Unit and integration tests are planned for Week 3.
+- **No server-side pagination** — Employee and leave tables paginate client-side. With 500+ records, performance will degrade. Planned for Week 4.
+- **No automated tests** — Unit and integration tests are planned for Week 4.
 - **Email notifications** — Leave approval/rejection and payslip delivery via email not yet implemented.
 - **Accessibility** — Keyboard navigation and screen reader support need a final audit pass.
 - **Export to CSV/Excel** — The export button on the Employees page is a placeholder.
 - **Console.log in api.ts** — Three dev-only `console.log` calls remain; they execute only when `import.meta.env.DEV` is `true`.
+- **Full mobile responsive redesign** — Sidebar navigation and table layouts need mobile-friendly rework.
+- **Advanced reporting and analytics page** — Reports page is still a placeholder awaiting implementation.
+- **Production deployment to cloud service** — Not yet deployed to any cloud hosting provider.
 
 ---
 
@@ -483,7 +525,7 @@ Types: feat, fix, refactor, chore, docs, style, test
 
 | Event | Date | Status |
 |-------|------|--------|
-| Mid Review | 20th – 27th June | ⏳ Upcoming |
+| Mid Review | 20th – 27th June | ✅ Completed |
 | Final Review | 5th – 10th July | ⏳ Upcoming |
 
 ---
