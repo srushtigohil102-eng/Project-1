@@ -67,12 +67,15 @@ export interface PayrollRecord {
   id: string;
   employeeId: string;
   employeeName: string;
-  month: string;
+  department: string;
+  month: number;
   year: number;
   basicSalary: number;
   allowances: number;
   deductions: number;
   netPay: number;
+  status: 'processed' | 'pending';
+  processedAt: string;
 }
 
 // ==========================================
@@ -149,12 +152,13 @@ export async function rejectLeave(
 // ==========================================
 
 const PAYROLL_RECORD_KEYS: (keyof PayrollRecord)[] = [
-  'id', 'employeeId', 'employeeName', 'month', 'year',
+  'id', 'employeeId', 'employeeName', 'department', 'month', 'year',
   'basicSalary', 'allowances', 'deductions', 'netPay',
+  'status', 'processedAt',
 ];
 
 const NUMBER_FIELDS: Set<keyof PayrollRecord> = new Set([
-  'year', 'basicSalary', 'allowances', 'deductions', 'netPay',
+  'month', 'year', 'basicSalary', 'allowances', 'deductions', 'netPay',
 ]);
 
 /**
