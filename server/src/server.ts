@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { Request, Response } from "express";
+
 import authRoutes from "./routes/authRoutes";
 import employeeRoutes from "./routes/employeeRoutes";
 import leaveRoutes from "./routes/leaveRoutes";
