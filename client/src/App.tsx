@@ -1,5 +1,7 @@
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import DevChecklist from './components/DevChecklist';
 import { AuthProvider } from './hooks/useAuth';
 import Layout from './layouts/Layout';
 import DashboardPage from './pages/DashboardPage';
@@ -31,10 +33,83 @@ function NotFoundPage() {
   );
 }
 
+function PageTransition({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  return (
+    <div
+      key={location.pathname}
+      className="animate-[fadeIn_200ms_ease-out]"
+    >
+      {children}
+    </div>
+  );
+}
+
+function GlobalShortcutHandler() {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      if (e.key === 'Escape') {
+        const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+        if (dialog) {
+          const closeBtn = dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+          if (closeBtn) {
+            e.preventDefault();
+            closeBtn.click();
+          }
+        }
+      }
+
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !isInput) {
+        const addBtn = document.querySelector<HTMLButtonElement>('[data-testid="add-employee-btn"]');
+        if (addBtn) {
+          e.preventDefault();
+          addBtn.click();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  return null;
+}
+
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-900">
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-600 shadow-lg">
+            <span className="text-xl font-bold tracking-wide text-white">HR</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-400" style={{ animationDelay: '0ms' }} />
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-400" style={{ animationDelay: '150ms' }} />
+            <div className="h-2 w-2 animate-bounce rounded-full bg-blue-400" style={{ animationDelay: '300ms' }} />
+          </div>
+          <p className="text-sm font-medium text-gray-400">Loading HRMS...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthProvider>
-      <Routes>
+      <GlobalShortcutHandler />
+      <PageTransition>
+        <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route
           path="/dashboard"
@@ -98,6 +173,8 @@ function App() {
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </PageTransition>
+      <DevChecklist />
     </AuthProvider>
   );
 }

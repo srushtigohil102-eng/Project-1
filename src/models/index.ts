@@ -1,179 +1,199 @@
-/**
- * Generate a random number between min and max (inclusive)
- */
-export const randomNumber = (min: number, max: number): number => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
+import express, { Application, Request, Response } from "express";
+import mongoose from "mongoose";
+import { connectDB } from "../config/db";
+import dotenv from "dotenv";
 
-/**
- * Get random item from array
- */
-export const randomItem = <T>(arr: T[]): T => {
-  return arr[Math.floor(Math.random() * arr.length)];
-};
+// Import all routes
+import authRoutes from "../routes/auth.routes";
+import employeeRoutes from "../routes/employee.routes";
+import departmentRoutes from "../routes/department.routes";
+import leaveRoutes from "../routes/leave.routes";
+import payrollRoutes from "../routes/payroll.routes";
+import analyticsRoutes from "../routes/analytics.routes";
 
-/**
- * Format date to YYYY-MM-DD
- */
-export const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+dotenv.config();
 
-/**
- * Calculate number of days between two dates
- */
-export const daysBetween = (startDate: Date, endDate: Date): number => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-};
+const app: Application = express();
+const PORT = process.env.PORT || 5000;
 
-/**
- * Generate employee ID
- */
-export const generateEmployeeId = (): string => {
-  const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
-  return `EMP${year}${random}`;
-};
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-/**
- * Convert number to words (for payslip)
- */
-export const numberToWords = (num: number): string => {
-  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+// ========== REGISTER ALL ROUTES ==========
+app.use("/api/auth", authRoutes);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/departments", departmentRoutes);
+app.use("/api/leaves", leaveRoutes);
+app.use("/api/payroll", payrollRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
-  const convert = (n: number): string => {
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
-    if (n < 1000) return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
-    if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
-    if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
-    return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
-  };
+// ========== HEALTH CHECK ==========
+app.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date(),
+    mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development"
+  });
+});
 
-  return convert(Math.floor(num)) + " Rupees Only";
-};
+// ========== ROOT ENDPOINT ==========
+app.get("/", (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "Enterprise HRMS & Payroll Automation API",
+    version: "2.0.0",
+    timestamp: new Date(),
+    modules: {
+      auth: {
+        base: "/api/auth",
+        endpoints: {
+          login: "POST /api/auth/login",
+          register: "POST /api/auth/register",
+          me: "GET /api/auth/me",
+          changePassword: "POST /api/auth/change-password",
+          logout: "POST /api/auth/logout"
+        }
+      },
+      employees: {
+        base: "/api/employees",
+        endpoints: {
+          getAll: "GET /api/employees",
+          getById: "GET /api/employees/:id",
+          create: "POST /api/employees",
+          update: "PUT /api/employees/:id",
+          delete: "DELETE /api/employees/:id",
+          byDepartment: "GET /api/employees/department/:departmentId"
+        }
+      },
+      departments: {
+        base: "/api/departments",
+        endpoints: {
+          getAll: "GET /api/departments",
+          getById: "GET /api/departments/:id",
+          create: "POST /api/departments",
+          update: "PUT /api/departments/:id",
+          delete: "DELETE /api/departments/:id",
+          employees: "GET /api/departments/:id/employees"
+        }
+      },
+      leaves: {
+        base: "/api/leaves",
+        endpoints: {
+          getAll: "GET /api/leaves",
+          create: "POST /api/leaves",
+          update: "PUT /api/leaves/:id",
+          process: "PUT /api/leaves/:id/process",
+          cancel: "DELETE /api/leaves/:id/cancel",
+          balance: "GET /api/leaves/balance"
+        }
+      },
+      payroll: {
+        base: "/api/payroll",
+        endpoints: {
+          getAll: "GET /api/payroll",
+          getById: "GET /api/payroll/:id",
+          getByEmployee: "GET /api/payroll/employee/:employeeId",
+          generate: "POST /api/payroll/generate",
+          update: "PUT /api/payroll/:id",
+          processPayment: "PUT /api/payroll/:id/payment",
+          delete: "DELETE /api/payroll/:id",
+          summary: "GET /api/payroll/summary",
+          // Aggregation endpoints
+          calculateNetPay: "GET /api/payroll/calculate-net-pay",
+          employeeSummary: "GET /api/payroll/employee-summary/:employeeId",
+          departmentStats: "GET /api/payroll/department-stats",
+          monthlySummary: "GET /api/payroll/monthly-summary",
+          topEarners: "GET /api/payroll/top-earners",
+          taxBreakdown: "GET /api/payroll/tax-breakdown",
+          trends: "GET /api/payroll/trends",
+          comparison: "GET /api/payroll/comparison"
+        }
+      },
+      analytics: {
+        base: "/api/analytics",
+        endpoints: {
+          employeesDetails: "GET /api/analytics/employees-details",
+          departmentHierarchy: "GET /api/analytics/department-hierarchy",
+          orgChart: "GET /api/analytics/org-chart",
+          employeeHierarchy: "GET /api/analytics/employee-hierarchy/:id",
+          departmentReports: "GET /api/analytics/department-reports",
+          departmentDistribution: "GET /api/analytics/department-distribution",
+          departmentLeaveReports: "GET /api/analytics/department-leave-reports",
+          pendingLeaveSummary: "GET /api/analytics/pending-leave-summary",
+          leaveTypeDistribution: "GET /api/analytics/leave-type-distribution"
+        }
+      },
+      health: "/health"
+    }
+  });
+});
 
-/**
- * Get month name from number
- */
-export const getMonthName = (month: number): string => {
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  return months[month - 1];
-};
+// ========== 404 HANDLER ==========
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+    path: req.originalUrl
+  });
+});
 
-/**
- * Validate ObjectId
- */
-export const isValidObjectId = (id: string): boolean => {
-  return /^[0-9a-fA-F]{24}$/.test(id);
-};
+// ========== ERROR HANDLER ==========
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+  console.error("Error:", err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    error: process.env.NODE_ENV === "development" ? err.stack : undefined
+  });
+});
 
-/**
- * Calculate age from date of birth
- */
-export const calculateAge = (dob: Date): number => {
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
+// ========== START SERVER ==========
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    app.listen(PORT, () => {
+      console.log(`\n${"=".repeat(60)}`);
+      console.log(`🚀 SERVER STARTED SUCCESSFULLY`);
+      console.log(`${"=".repeat(60)}`);
+      console.log(`📍 URL: http://localhost:${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`📦 Database: ${mongoose.connection.name}`);
+      console.log(`${"=".repeat(60)}\n`);
+      
+      console.log(`📋 AVAILABLE MODULES:\n`);
+      console.log(`   🔐 Auth          → /api/auth`);
+      console.log(`   👥 Employees     → /api/employees`);
+      console.log(`   🏢 Departments   → /api/departments`);
+      console.log(`   📅 Leaves        → /api/leaves`);
+      console.log(`   💰 Payroll       → /api/payroll`);
+      console.log(`   📊 Analytics     → /api/analytics`);
+      console.log(`   ❤️  Health        → /health`);
+      console.log(`\n${"=".repeat(60)}`);
+      console.log(`✅ API ready to accept requests\n`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
   }
-  return age;
 };
 
-/**
- * Calculate PF contribution (12% of basic salary)
- */
-export const calculatePF = (basicSalary: number): number => {
-  return basicSalary * 0.12;
-};
+startServer();
 
-/**
- * Calculate professional tax based on salary
- */
-export const calculateProfessionalTax = (salary: number): number => {
-  if (salary <= 30000) return 0;
-  if (salary <= 50000) return 150;
-  if (salary <= 75000) return 300;
-  return 500;
-};
+// ========== GRACEFUL SHUTDOWN ==========
+process.on("SIGINT", async () => {
+  console.log("\n⚠️  Received SIGINT. Shutting down gracefully...");
+  await mongoose.disconnect();
+  console.log("✅ MongoDB disconnected");
+  process.exit(0);
+});
 
-/**
- * Calculate TDS based on salary (simplified)
- */
-export const calculateTDS = (salary: number): number => {
-  if (salary <= 500000) return 0;
-  if (salary <= 1000000) return salary * 0.05;
-  if (salary <= 1500000) return salary * 0.10;
-  return salary * 0.15;
-};
-
-/**
- * Generate payslip HTML template
- */
-export const generatePayslipHTML = (data: any): string => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .company { font-size: 24px; font-weight: bold; }
-        .title { font-size: 20px; margin-top: 10px; }
-        .employee-details { margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        .total { font-weight: bold; background-color: #f2f2f2; }
-        .footer { text-align: center; margin-top: 30px; font-size: 12px; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="company">HRMS Enterprise</div>
-        <div class="title">Salary Slip - ${getMonthName(data.month)} ${data.year}</div>
-      </div>
-      
-      <div class="employee-details">
-        <strong>Employee Name:</strong> ${data.employeeName}<br>
-        <strong>Employee ID:</strong> ${data.employeeId}<br>
-        <strong>Designation:</strong> ${data.designation}<br>
-        <strong>Department:</strong> ${data.department}
-      </div>
-      
-      <table>
-        <tr><th>Earnings</th><th>Amount (₹)</th></tr>
-        ${data.earnings.map((e: any) => `<tr><td>${e.name}</td><td>₹${e.amount.toLocaleString()}</td></tr>`).join('')}
-        <tr class="total"><td>Gross Salary</td><td>₹${data.grossSalary.toLocaleString()}</td></tr>
-      </table>
-      
-      <table>
-        <tr><th>Deductions</th><th>Amount (₹)</th></tr>
-        ${data.deductions.map((d: any) => `<tr><td>${d.name}</td><td>₹${d.amount.toLocaleString()}</td></tr>`).join('')}
-        <tr class="total"><td>Total Deductions</td><td>₹${data.totalDeductions.toLocaleString()}</td></tr>
-      </table>
-      
-      <table>
-        <tr class="total"><td>Net Salary</td><td>₹${data.netSalary.toLocaleString()}</td></tr>
-      </table>
-      
-      <div class="footer">
-        <p>Amount in Words: ${data.amountInWords}</p>
-        <p>This is a computer generated document. No signature required.</p>
-      </div>
-    </body>
-    </html>
-  `;
-};
+process.on("SIGTERM", async () => {
+  console.log("\n⚠️  Received SIGTERM. Shutting down gracefully...");
+  await mongoose.disconnect();
+  console.log("✅ MongoDB disconnected");
+  process.exit(0);
+});

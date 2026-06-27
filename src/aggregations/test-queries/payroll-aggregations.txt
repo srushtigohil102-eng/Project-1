@@ -1,0 +1,218 @@
+// ----------------------------------------
+// 1. CALCULATE NET PAY
+// ----------------------------------------
+// Endpoint: GET /api/payroll/calculate-net-pay
+
+[
+  {
+    $match: {
+      year: 2026
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "employee",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: {
+      path: "$employeeInfo",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $project: {
+      employee: {
+        _id: "$employeeInfo._id",
+        employeeId: "$employeeInfo.employeeId",
+        fullName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+        designation: "$employeeInfo.designation"
+      },
+      month: 1,
+      year: 1,
+      basicSalary: "$salaryBreakdown.basic",
+      grossSalary: 1,
+      netSalary: 1,
+      status: 1
+    }
+  },
+  {
+    $sort: { year: -1, month: -1 }
+  }
+]
+
+// ----------------------------------------
+// 2. EMPLOYEE PAYROLL SUMMARY (YTD)
+// ----------------------------------------
+// Endpoint: GET /api/payroll/employee-summary/:employeeId
+
+// Replace EMPLOYEE_ID with actual ID
+[
+  {
+    $match: {
+      employee: ObjectId("EMPLOYEE_ID_HERE"),
+      year: 2026
+    }
+  },
+  {
+    $group: {
+      _id: "$employee",
+      totalGrossSalary: { $sum: "$grossSalary" },
+      totalNetSalary: { $sum: "$netSalary" },
+      totalTax: { $sum: "$deductionBreakdown.tax" },
+      totalPF: { $sum: "$deductionBreakdown.providentFund" },
+      monthsCount: { $sum: 1 },
+      paidMonths: {
+        $sum: {
+          $cond: [{ $eq: ["$status", "Paid"] }, 1, 0]
+        }
+      }
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "_id",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: "$employeeInfo"
+  },
+  {
+    $project: {
+      employee: {
+        fullName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] }
+      },
+      totalGrossSalary: 1,
+      totalNetSalary: 1,
+      totalTax: 1,
+      totalPF: 1,
+      monthsCount: 1,
+      paidMonths: 1
+    }
+  }
+]
+
+// ----------------------------------------
+// 3. DEPARTMENT PAYROLL STATS
+// ----------------------------------------
+// Endpoint: GET /api/payroll/department-stats
+
+[
+  {
+    $match: {
+      year: 2026
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "employee",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: "$employeeInfo"
+  },
+  {
+    $lookup: {
+      from: "departments",
+      localField: "employeeInfo.department",
+      foreignField: "_id",
+      as: "dept"
+    }
+  },
+  {
+    $unwind: "$dept"
+  },
+  {
+    $group: {
+      _id: "$dept._id",
+      departmentName: { $first: "$dept.name" },
+      departmentCode: { $first: "$dept.code" },
+      totalEmployees: { $sum: 1 },
+      totalGrossSalary: { $sum: "$grossSalary" },
+      totalNetSalary: { $sum: "$netSalary" },
+      avgGrossSalary: { $avg: "$grossSalary" },
+      avgNetSalary: { $avg: "$netSalary" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      department: {
+        id: "$_id",
+        name: "$departmentName",
+        code: "$departmentCode"
+      },
+      totalEmployees: 1,
+      totalGrossSalary: 1,
+      totalNetSalary: 1,
+      avgGrossSalary: { $round: ["$avgGrossSalary", 2] },
+      avgNetSalary: { $round: ["$avgNetSalary", 2] }
+    }
+  }
+]
+
+// ----------------------------------------
+// 4. MONTHLY PAYROLL SUMMARY
+// ----------------------------------------
+// Endpoint: GET /api/payroll/monthly-summary
+
+[
+  {
+    $match: {
+      year: 2026
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "employee",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: "$employeeInfo"
+  },
+  {
+    $group: {
+      _id: "$month",
+      month: { $first: "$month" },
+      totalEmployees: { $sum: 1 },
+      totalGrossSalary: { $sum: "$grossSalary" },
+      totalNetSalary: { $sum: "$netSalary" },
+      avgGrossSalary: { $avg: "$grossSalary" },
+      avgNetSalary: { $avg: "$netSalary" }
+    }
+  },
+  {
+    $sort: { _id: 1 }
+  },
+  {
+    $project: {
+      _id: 0,
+      month: 1,
+      monthName: {
+        $let: {
+          vars: {
+            months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+          },
+          in: { $arrayElemAt: ["$$months", { $subtract: ["$month", 1] }] }
+        }
+      },
+      totalEmployees: 1,
+      totalGrossSalary: 1,
+      totalNetSalary: 1,
+      avgGrossSalary: { $round: ["$avgGrossSalary", 2] },
+      avgNetSalary: { $round: ["$avgNetSalary", 2] }
+    }
+  }
+]

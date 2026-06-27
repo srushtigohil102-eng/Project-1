@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   clearStoredAuth,
+  onAuthChange,
   readStoredAuth,
   writeStoredAuth,
   type UserType,
@@ -25,7 +26,7 @@ interface AuthContextValue {
   isLoggedIn: boolean;
   isHRManager: boolean;
   isEmployee: boolean;
-  login: (newToken: string, newUser: UserType) => void;
+  login: (newToken: string, newUser: UserType, rememberMe?: boolean) => void;
   logout: () => void;
 }
 
@@ -43,8 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [navigate]);
 
-  const login = useCallback((newToken: string, newUser: UserType): void => {
-    writeStoredAuth(newToken, newUser);
+  useEffect(() => {
+    const unsubscribe = onAuthChange(() => {
+      const { token: freshToken, user: freshUser } = readStoredAuth();
+      setToken(freshToken);
+      setUser(freshUser);
+      if (!freshToken) {
+        navigateTo('/');
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const login = useCallback((newToken: string, newUser: UserType, rememberMe = false): void => {
+    writeStoredAuth(newToken, newUser, rememberMe);
     setToken(newToken);
     setUser(newUser);
   }, []);
