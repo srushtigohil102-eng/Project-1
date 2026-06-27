@@ -15,11 +15,12 @@ import {
   showLoadingSuccess,
   showLoadingError,
 } from '../utils/toast';
-import { formatIndianCurrency } from '../utils/helpers';
+import { formatIndianCurrency, formatTimeAgo } from '../utils/helpers';
 import useEmployees from '../hooks/useEmployees';
 import { BatchNotImplementedError } from '../utils/api';
 import Avatar from '../components/Avatar';
 import ConfirmDialog from '../components/ConfirmDialog';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -37,7 +38,7 @@ function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: strin
 
 function PayrollPage() {
   const { user, isHRManager } = useAuth();
-  const { data: payrollData, isLoading, isError, error, refetch } = usePayroll();
+  const { data: payrollData, isLoading, isError, error, refetch, dataUpdatedAt } = usePayroll();
   const runPayrollMutation = useRunPayroll();
   const downloadPayslipMutation = useDownloadPayslip();
   const previewPayslipMutation = usePreviewPayslip();
@@ -497,13 +498,13 @@ function PayrollPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Basic</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Allowances</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Deductions</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Pay</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Payslip</th>
+                <th className="min-w-[180px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Basic</th>
+                <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Allowances</th>
+                <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Deductions</th>
+                <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Pay</th>
+                <th className="min-w-[100px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="min-w-[160px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Payslip</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -568,8 +569,9 @@ function PayrollPage() {
                             type="button"
                             onClick={() => handlePreview(record)}
                             disabled={isBusyId === record.id}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
+                            {previewingId === record.id && <LoadingSpinner size="sm" />}
                             {previewingId === record.id ? 'Loading...' : 'Preview'}
                           </button>
                         </>
@@ -619,6 +621,12 @@ function PayrollPage() {
         onCancel={() => setShowBatchConfirm(false)}
         isLoading={downloadBatchMutation.isPending}
       />
+
+      {!isLoading && payrollData && (
+        <p className="mt-3 text-right text-xs text-gray-400">
+          Last updated: {formatTimeAgo(new Date(dataUpdatedAt))}
+        </p>
+      )}
     </>
   );
 }

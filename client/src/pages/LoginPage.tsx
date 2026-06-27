@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import useAuth, { type UserType } from '../hooks/useAuth';
 import apiFetch from '../utils/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface FormData {
   email: string;
@@ -158,7 +159,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
+    <div className="flex min-h-screen animate-fade-in items-center justify-center bg-gray-100 px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600">
@@ -254,8 +255,9 @@ function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400"
           >
+            {isLoading && <LoadingSpinner size="sm" className="text-white" />}
             {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>

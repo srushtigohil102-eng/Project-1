@@ -5,7 +5,7 @@ import {
   useApproveLeave,
   useRejectLeave,
 } from '../hooks/useLeave';
-import { calculateLeaveDays, formatDate } from '../utils/helpers';
+import { calculateLeaveDays, formatDate, formatTimeAgo } from '../utils/helpers';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
 import ApplyLeaveModal from '../components/ApplyLeaveModal';
@@ -181,7 +181,7 @@ function LeavePage() {
   const { user, isHRManager } = useAuth();
   
   // Queries & Mutations
-  const { data: leaves = [], isLoading, error, refetch } = useLeaves();
+  const { data: leaves = [], isLoading, error, refetch, dataUpdatedAt } = useLeaves();
   const approveMutation = useApproveLeave();
   const rejectMutation = useRejectLeave();
 
@@ -434,24 +434,24 @@ function LeavePage() {
           <thead className="bg-gray-50">
             {isHRManager ? (
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                <th scope="col" className="min-w-[130px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
+                <th scope="col" className="min-w-[70px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
+                <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
+                <th scope="col" className="min-w-[100px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="min-w-[160px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             ) : (
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Applied On</th>
+                <th scope="col" className="min-w-[130px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From Date</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To Date</th>
+                <th scope="col" className="min-w-[70px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
+                <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
+                <th scope="col" className="min-w-[100px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Applied On</th>
               </tr>
             )}
           </thead>
@@ -631,6 +631,12 @@ function LeavePage() {
           </tbody>
         </table>
       </div>
+
+      {!isLoading && leaves.length > 0 && (
+        <p className="mt-3 text-right text-xs text-gray-400">
+          Last updated: {formatTimeAgo(new Date(dataUpdatedAt))}
+        </p>
+      )}
 
       {/* Modal - Apply for Leave (Employee View only) */}
       <ApplyLeaveModal

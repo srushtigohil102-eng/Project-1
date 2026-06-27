@@ -3,12 +3,14 @@ import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddEmployeeModal from '../components/AddEmployeeModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 import useAuth from '../hooks/useAuth';
 import useEmployees, {
   useDeleteEmployee,
   type Employee,
 } from '../hooks/useEmployees';
 import { showSuccess, showError } from '../utils/toast';
+import { formatTimeAgo } from '../utils/helpers';
 
 const DEPARTMENT_OPTIONS = [
   'All Departments',
@@ -289,8 +291,8 @@ function EmployeeRow({
           </div>
         </div>
       </td>
-      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.department}>{employee.department}</td>
-      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.role}>{employee.role}</td>
+      <td className="max-w-[150px] truncate px-4 py-4 text-gray-700" title={employee.department}>{employee.department || '—'}</td>
+      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.role || '—'}>{employee.role || '—'}</td>
       <td className="px-4 py-4">
         <StatusBadge status={employee.status} />
       </td>
@@ -312,8 +314,9 @@ function EmployeeRow({
               type="button"
               onClick={() => onDelete(employee)}
               disabled={disableActions}
-              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
+              className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
             >
+              {isDeleting && <LoadingSpinner size="sm" className="text-white" />}
               {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
@@ -390,9 +393,26 @@ function PaginationBar({
   );
 }
 
+function LastUpdated({ dataUpdatedAt }: { dataUpdatedAt: number | undefined }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!dataUpdatedAt) return null;
+
+  return (
+    <p className="mt-3 text-right text-xs text-gray-400">
+      Last updated: {formatTimeAgo(new Date(dataUpdatedAt))}
+    </p>
+  );
+}
+
 function EmployeesPage() {
   const { isHRManager } = useAuth();
-  const { data: employees, isLoading, isError, error, refetch } =
+  const { data: employees, isLoading, isError, error, refetch, dataUpdatedAt } =
     useEmployees();
   const deleteMutation = useDeleteEmployee();
 
@@ -730,7 +750,7 @@ function EmployeesPage() {
                   )}
                   <th
                     onClick={() => handleSort('name')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    className="min-w-[200px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
                   >
                     <div className="flex items-center gap-1">
                       Employee
@@ -741,15 +761,15 @@ function EmployeesPage() {
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                  <th className="min-w-[150px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
                     Department
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                  <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
                     Role
                   </th>
                   <th
                     onClick={() => handleSort('status')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    className="min-w-[100px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
                   >
                     <div className="flex items-center gap-1">
                       Status
@@ -762,7 +782,7 @@ function EmployeesPage() {
                   </th>
                   <th
                     onClick={() => handleSort('salary')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    className="min-w-[120px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
                   >
                     <div className="flex items-center gap-1">
                       Salary
@@ -774,7 +794,7 @@ function EmployeesPage() {
                     </div>
                   </th>
                   {isHRManager && (
-                    <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                    <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
                       Actions
                     </th>
                   )}
@@ -819,7 +839,7 @@ function EmployeesPage() {
             </table>
           </div>
 
-          {!isLoading && totalCount > 0 && (
+                  {!isLoading && totalCount > 0 && (
             <PaginationBar
               currentPage={effectivePage}
               totalPages={totalPages}
@@ -828,6 +848,7 @@ function EmployeesPage() {
               onPageChange={setCurrentPage}
             />
           )}
+          <LastUpdated dataUpdatedAt={dataUpdatedAt} />
         </div>
       )}
 
