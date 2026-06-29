@@ -51,86 +51,110 @@ const leaveRequests: LeaveRequest[] = [
 ];
 
 export const getLeaves = (_req: Request, res: Response): void => {
-  res.status(200).json(leaveRequests);
+  try {
+    res.status(200).json(leaveRequests);
+  } catch {
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 };
 
 export const applyLeave = (req: Request, res: Response): void => {
-  const user = (req as AuthenticatedRequest).user;
-  const { leaveType, fromDate, toDate, reason } = req.body;
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const { leaveType, fromDate, toDate, reason } = req.body;
 
-  if (!leaveType || !fromDate || !toDate || !reason) {
-    res.status(400).json({
-      message: "All leave fields are required",
+    if (!leaveType || !fromDate || !toDate || !reason) {
+      res.status(400).json({
+        message: "All leave fields are required",
+      });
+      return;
+    }
+
+    const leaveRequest: LeaveRequest = {
+      id: `leave-${Date.now()}`,
+      employeeId: user?.id ?? "",
+      employeeName: user?.email ?? "",
+      leaveType,
+      fromDate,
+      toDate,
+      reason,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    leaveRequests.push(leaveRequest);
+
+    res.status(201).json({
+      message: "Leave request submitted successfully",
+      leaveRequest,
     });
-    return;
+  } catch {
+    res.status(500).json({
+      message: "Internal server error",
+    });
   }
-
-  const leaveRequest: LeaveRequest = {
-    id: `leave-${Date.now()}`,
-    employeeId: user?.id ?? "",
-    employeeName: user?.email ?? "",
-    leaveType,
-    fromDate,
-    toDate,
-    reason,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-  };
-
-  leaveRequests.push(leaveRequest);
-
-  res.status(201).json({
-    message: "Leave request submitted successfully",
-    leaveRequest,
-  });
 };
 
 export const approveLeave = (req: Request, res: Response): void => {
-  const leave = leaveRequests.find(
-    (item) => item.id === req.params.id
-  );
+  try {
+    const leave = leaveRequests.find(
+      (item) => item.id === req.params.id
+    );
 
-  if (!leave) {
-    res.status(404).json({
-      message: "Leave request not found",
+    if (!leave) {
+      res.status(404).json({
+        message: "Leave request not found",
+      });
+      return;
+    }
+
+    leave.status = "approved";
+
+    res.status(200).json({
+      message: "Leave approved successfully",
+      leave,
     });
-    return;
+  } catch {
+    res.status(500).json({
+      message: "Internal server error",
+    });
   }
-
-  leave.status = "approved";
-
-  res.status(200).json({
-    message: "Leave approved successfully",
-    leave,
-  });
 };
 
 export const rejectLeave = (req: Request, res: Response): void => {
-  const leave = leaveRequests.find(
-    (item) => item.id === req.params.id
-  );
+  try {
+    const leave = leaveRequests.find(
+      (item) => item.id === req.params.id
+    );
 
-  if (!leave) {
-    res.status(404).json({
-      message: "Leave request not found",
+    if (!leave) {
+      res.status(404).json({
+        message: "Leave request not found",
+      });
+      return;
+    }
+
+    const { reason } = req.body;
+
+    if (!reason) {
+      res.status(400).json({
+        message: "Rejection reason is required",
+      });
+      return;
+    }
+
+    leave.status = "rejected";
+    leave.rejectReason = reason;
+
+    res.status(200).json({
+      message: "Leave rejected successfully",
+      leave,
     });
-    return;
-  }
-
-  const { reason } = req.body;
-
-  if (!reason) {
-    res.status(400).json({
-      message: "Rejection reason is required",
+  } catch {
+    res.status(500).json({
+      message: "Internal server error",
     });
-    return;
   }
-
-  leave.status = "rejected";
-  leave.rejectReason = reason;
-
-  res.status(200).json({
-    message: "Leave rejected successfully",
-    leave,
-  });
 };

@@ -4,13 +4,14 @@ import {
   runPayroll,
   downloadPayrollPdf,
 } from "../controllers/payrollController";
+
 import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-// View payroll by employee ID
+// Get payroll by employee
 router.get(
-  "/employee/:employeeId",
+  "/:employeeId",
   verifyToken,
   requireRole("hr_manager"),
   getPayrollByEmployeeId
@@ -26,7 +27,7 @@ router.post(
 
 // Download payroll PDF
 router.get(
-  "/employee/:employeeId/download",
+  "/:employeeId/download",
   verifyToken,
   requireRole("hr_manager"),
   downloadPayrollPdf
