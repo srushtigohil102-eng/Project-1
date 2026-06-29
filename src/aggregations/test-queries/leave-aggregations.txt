@@ -1,0 +1,171 @@
+// ----------------------------------------
+// 1. GET DEPARTMENT LEAVE REPORTS
+// ----------------------------------------
+// Endpoint: GET /api/analytics/department-leave-reports
+
+[
+  {
+    $match: {
+      createdAt: {
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 6))
+      }
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "employee",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: {
+      path: "$employeeInfo",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $lookup: {
+      from: "departments",
+      localField: "employeeInfo.department",
+      foreignField: "_id",
+      as: "dept"
+    }
+  },
+  {
+    $unwind: {
+      path: "$dept",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $group: {
+      _id: {
+        departmentId: "$dept._id",
+        departmentName: "$dept.name",
+        departmentCode: "$dept.code",
+        status: "$status"
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        departmentId: "$_id.departmentId",
+        departmentName: "$_id.departmentName",
+        departmentCode: "$_id.departmentCode"
+      },
+      pending: {
+        $sum: {
+          $cond: [{ $eq: ["$_id.status", "Pending"] }, "$count", 0]
+        }
+      },
+      approved: {
+        $sum: {
+          $cond: [{ $eq: ["$_id.status", "Approved"] }, "$count", 0]
+        }
+      },
+      rejected: {
+        $sum: {
+          $cond: [{ $eq: ["$_id.status", "Rejected"] }, "$count", 0]
+        }
+      },
+      totalLeaves: { $sum: "$count" }
+    }
+  },
+  {
+    $sort: {
+      "_id.departmentName": 1
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      department: {
+        id: "$_id.departmentId",
+        name: "$_id.departmentName",
+        code: "$_id.departmentCode"
+      },
+      pendingLeaveCount: "$pending",
+      approvedLeaveCount: "$approved",
+      rejectedLeaveCount: "$rejected",
+      totalLeaveCount: "$totalLeaves"
+    }
+  }
+]
+
+// ----------------------------------------
+// 2. GET PENDING LEAVE SUMMARY
+// ----------------------------------------
+// Endpoint: GET /api/analytics/pending-leave-summary
+
+[
+  {
+    $match: {
+      status: "Pending",
+      startDate: { $gte: new Date() }
+    }
+  },
+  {
+    $lookup: {
+      from: "employees",
+      localField: "employee",
+      foreignField: "_id",
+      as: "employeeInfo"
+    }
+  },
+  {
+    $unwind: {
+      path: "$employeeInfo",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $lookup: {
+      from: "departments",
+      localField: "employeeInfo.department",
+      foreignField: "_id",
+      as: "dept"
+    }
+  },
+  {
+    $unwind: {
+      path: "$dept",
+      preserveNullAndEmptyArrays: true
+    }
+  },
+  {
+    $group: {
+      _id: "$dept._id",
+      departmentName: { $first: "$dept.name" },
+      departmentCode: { $first: "$dept.code" },
+      pendingCount: { $sum: 1 },
+      leaves: {
+        $push: {
+          employeeName: { $concat: ["$employeeInfo.firstName", " ", "$employeeInfo.lastName"] },
+          leaveType: "$leaveType",
+          startDate: "$startDate",
+          endDate: "$endDate",
+          numberOfDays: "$numberOfDays"
+        }
+      }
+    }
+  },
+  {
+    $sort: { pendingCount: -1 }
+  },
+  {
+    $project: {
+      _id: 0,
+      department: {
+        id: "$_id",
+        name: "$departmentName",
+        code: "$departmentCode"
+      },
+      pendingCount: 1,
+      leaves: 1
+    }
+  }
+]
