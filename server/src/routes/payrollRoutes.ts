@@ -1,57 +1,38 @@
 import express from "express";
 import {
-
+  getPayroll,
+  getPayrollByEmployee,
   getPayrollByEmployeeId,
   runPayroll,
   downloadPayrollPdf,
-
-  getPayroll,
-  getPayrollByEmployee,
-  runPayroll,
-
 } from "../controllers/payrollController";
 import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-router.get(
-  "/:employeeId",
-  verifyToken,
-  requireRole("hr_manager"),
-  getPayrollByEmployeeId
-);
-
-router.post(
-  "/run",
-  verifyToken,
-  requireRole("hr_manager"),
-  runPayroll
-);
-
-router.get(
-  "/:employeeId/download",
-  verifyToken,
-  requireRole("hr_manager"),
-  downloadPayrollPdf
-);
-
-export default router;
-
-// Both roles can view payroll records
+// View all payroll records
 router.get(
   "/",
   verifyToken,
   getPayroll
 );
 
-// View payroll for a specific employee
+// View payroll by employee ID
+router.get(
+  "/employee/:employeeId",
+  verifyToken,
+  requireRole("hr_manager"),
+  getPayrollByEmployeeId
+);
+
+// View payroll using id (existing route from latest project)
 router.get(
   "/:id",
   verifyToken,
   getPayrollByEmployee
 );
 
-// HR Manager can run payroll
+// Run payroll
 router.post(
   "/run",
   verifyToken,
@@ -59,5 +40,12 @@ router.post(
   runPayroll
 );
 
-export default router;
+// Download payroll PDF
+router.get(
+  "/employee/:employeeId/download",
+  verifyToken,
+  requireRole("hr_manager"),
+  downloadPayrollPdf
+);
 
+export default router;
