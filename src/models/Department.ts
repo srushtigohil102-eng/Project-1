@@ -70,8 +70,6 @@ const DepartmentSchema = new Schema<IDepartment>(
 );
 
 // Indexes for better query performance
-DepartmentSchema.index({ name: 1 });
-DepartmentSchema.index({ code: 1 });
 DepartmentSchema.index({ isActive: 1 });
 DepartmentSchema.index({ departmentHead: 1 });
 

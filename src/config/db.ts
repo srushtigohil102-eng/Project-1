@@ -1,14 +1,19 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/hrms_payroll";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/hrms";
 
 export const connectDB = async (): Promise<void> => {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log(`✅ MongoDB Connected Successfully`);
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      directConnection: false,
+      retryWrites: true,
+    });
+    console.log("✅ MongoDB Connected Successfully");
     console.log(`📦 Database: ${mongoose.connection.name}`);
   } catch (error) {
     console.error("❌ MongoDB Connection Failed:", error);
@@ -16,7 +21,6 @@ export const connectDB = async (): Promise<void> => {
   }
 };
 
-// Handle connection events
 mongoose.connection.on("disconnected", () => {
   console.warn("⚠️ MongoDB disconnected");
 });
@@ -25,7 +29,6 @@ mongoose.connection.on("error", (err) => {
   console.error("MongoDB error:", err);
 });
 
-// Graceful shutdown
 process.on("SIGINT", async () => {
   await mongoose.disconnect();
   console.log("MongoDB disconnected through app termination");
