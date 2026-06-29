@@ -58,14 +58,21 @@ export const applyLeave = (req: Request, res: Response): void => {
   const user = (req as AuthenticatedRequest).user;
   const { leaveType, fromDate, toDate, reason } = req.body;
 
+  if (!leaveType || !fromDate || !toDate || !reason) {
+    res.status(400).json({
+      message: "All leave fields are required",
+    });
+    return;
+  }
+
   const leaveRequest: LeaveRequest = {
     id: `leave-${Date.now()}`,
     employeeId: user?.id ?? "",
     employeeName: user?.email ?? "",
-    leaveType: leaveType ?? "",
-    fromDate: fromDate ?? "",
-    toDate: toDate ?? "",
-    reason: reason ?? "",
+    leaveType,
+    fromDate,
+    toDate,
+    reason,
     status: "pending",
     createdAt: new Date().toISOString(),
   };
@@ -111,8 +118,16 @@ export const rejectLeave = (req: Request, res: Response): void => {
   }
 
   const { reason } = req.body;
+
+  if (!reason) {
+    res.status(400).json({
+      message: "Rejection reason is required",
+    });
+    return;
+  }
+
   leave.status = "rejected";
-  leave.rejectReason = reason ?? "";
+  leave.rejectReason = reason;
 
   res.status(200).json({
     message: "Leave rejected successfully",

@@ -1,7 +1,5 @@
 import express from "express";
 import {
-  getPayroll,
-  getPayrollByEmployee,
   getPayrollByEmployeeId,
   runPayroll,
   downloadPayrollPdf,
@@ -10,26 +8,12 @@ import { verifyToken, requireRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-// View all payroll records
-router.get(
-  "/",
-  verifyToken,
-  getPayroll
-);
-
 // View payroll by employee ID
 router.get(
   "/employee/:employeeId",
   verifyToken,
   requireRole("hr_manager"),
   getPayrollByEmployeeId
-);
-
-// View payroll using id (existing route from latest project)
-router.get(
-  "/:id",
-  verifyToken,
-  getPayrollByEmployee
 );
 
 // Run payroll

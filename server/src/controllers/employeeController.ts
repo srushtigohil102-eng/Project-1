@@ -72,6 +72,15 @@ export const getEmployees = (_req: Request, res: Response): void => {
 };
 
 export const createEmployee = (req: Request, res: Response): void => {
+  const { name, email, department, role, salary } = req.body;
+
+  if (!name || !email || !department || !role || salary === undefined) {
+    res.status(400).json({
+      message: "All employee fields are required",
+    });
+    return;
+  }
+
   const newEmployee: Employee = {
     id: `emp-${Date.now()}`,
     ...req.body,
@@ -93,6 +102,13 @@ export const updateEmployee = (req: Request, res: Response): void => {
   if (!employee) {
     res.status(404).json({
       message: "Employee not found",
+    });
+    return;
+  }
+
+  if (Object.keys(req.body).length === 0) {
+    res.status(400).json({
+      message: "No update data provided",
     });
     return;
   }
