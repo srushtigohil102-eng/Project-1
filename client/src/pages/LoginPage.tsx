@@ -16,14 +16,21 @@ interface Errors {
   general?: string;
 }
 
-interface LoginSuccessResponse {
+interface LoginResponseData {
   token: string;
-  user: {
-    id: string;
-    name: string;
+  employee: {
+    _id: string;
+    firstName: string;
+    lastName: string;
     email: string;
     role: string;
   };
+}
+
+interface LoginSuccessResponse {
+  success: boolean;
+  message: string;
+  data: LoginResponseData;
 }
 
 interface LoginErrorResponse {
@@ -31,10 +38,11 @@ interface LoginErrorResponse {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOGIN_URL = '/auth/login';
+const LOGIN_URL = '/api/auth/login';
 
-function isUserRole(role: string): role is UserType['role'] {
-  return role === 'employee' || role === 'hr_manager';
+function mapRole(role: string): UserType['role'] {
+  if (role === 'Admin' || role === 'HR' || role === 'Manager') return 'hr_manager';
+  return 'employee';
 }
 
 function validateForm(data: FormData): Errors {
@@ -56,15 +64,13 @@ function validateForm(data: FormData): Errors {
 }
 
 function toUserType(data: LoginSuccessResponse): UserType | null {
-  if (!isUserRole(data.user.role)) {
-    return null;
-  }
+  const { token, employee } = data.data;
 
   return {
-    id: data.user.id,
-    name: data.user.name,
-    email: data.user.email,
-    role: data.user.role,
+    id: employee._id,
+    name: `${employee.firstName} ${employee.lastName}`,
+    email: employee.email,
+    role: mapRole(employee.role),
   };
 }
 
@@ -124,15 +130,10 @@ function LoginPage() {
       });
 
       if (response.ok) {
-        const data = (await response.json()) as LoginSuccessResponse;
-        const user = toUserType(data);
+        const responseData = (await response.json()) as LoginSuccessResponse;
+        const user = toUserType(responseData);
 
-        if (!user) {
-          setErrors({ general: 'Something went wrong. Please try again.' });
-          return;
-        }
-
-        login(data.token, user, rememberMe);
+        login(responseData.data.token, user, rememberMe);
         navigate('/dashboard');
         return;
       }
