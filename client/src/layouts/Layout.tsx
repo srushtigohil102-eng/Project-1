@@ -2,6 +2,7 @@ import React, { type ReactNode, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { useLeaves } from '../hooks/useLeave';
+import type { EmployeeRole } from '../services/apiService';
 import ApiStatus from '../components/ApiStatus';
 
 interface LayoutProps {
@@ -14,57 +15,75 @@ type NavItem = {
   path: string;
 };
 
-const HR_MANAGER_NAV_ITEMS: NavItem[] = [
-  { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
-  { icon: '👥', label: 'Employees', path: '/employees' },
-  { icon: '📋', label: 'Leave', path: '/leave' },
-  { icon: '💰', label: 'Payroll', path: '/payroll' },
-  { icon: '📊', label: 'Reports', path: '/reports' },
-  { icon: '⚙️', label: 'Settings', path: '/settings' },
-];
-
-const EMPLOYEE_NAV_ITEMS: NavItem[] = [
-  { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
-  { icon: '📋', label: 'Leave', path: '/leave' },
-  { icon: '💰', label: 'Payroll', path: '/payroll' },
-];
-
-const formatPageName = (pathname: string): string => {
-  const segment = pathname.split('/').filter(Boolean).pop() ?? 'home';
-  return segment.charAt(0).toUpperCase() + segment.slice(1);
+const ROLE_BADGE: Record<EmployeeRole, { bg: string; text: string; label: string }> = {
+  Admin: { bg: 'bg-purple-600/20', text: 'text-purple-300', label: 'Admin' },
+  HR: { bg: 'bg-blue-600/20', text: 'text-blue-300', label: 'HR' },
+  Manager: { bg: 'bg-orange-600/20', text: 'text-orange-300', label: 'Mgr' },
+  Employee: { bg: 'bg-green-600/20', text: 'text-green-300', label: 'Emp' },
 };
 
-const formatRoleLabel = (role: 'hr_manager' | 'employee'): string =>
-  role === 'hr_manager' ? 'HR Manager' : 'Employee';
-
-function NavigationProgress() {
-  return (
-    <div className="fixed left-0 right-0 top-0 z-50 h-0.5 animate-[nav-progress_500ms_ease-out_forwards] bg-blue-600" />
-  );
+function getLeaveEmployeeId(leave: { employee: string | { _id: string } }): string {
+  if (typeof leave.employee === 'object' && leave.employee !== null) {
+    return leave.employee._id;
+  }
+  return leave.employee as string;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-  const { user, isHRManager, logout } = useAuth();
+  const { user, logout, isAdmin, isHR, isManager, isEmployee } = useAuth();
 
   const { data: leaves, isLoading: leavesLoading } = useLeaves();
 
+  const role = user?.role ?? 'Employee';
+
+  const navItems: NavItem[] = useMemo(() => {
+    const base: NavItem[] = [
+      { icon: '🏠', label: 'Dashboard', path: '/dashboard' },
+    ];
+
+    if (isAdmin || isHR || isManager) {
+      base.push({ icon: '👥', label: 'Employees', path: '/employees' });
+    }
+
+    base.push({ icon: '📋', label: 'Leave', path: '/leave' });
+
+    if (isAdmin || isHR) {
+      base.push({ icon: '💰', label: 'Payroll', path: '/payroll' });
+    }
+
+    if (isAdmin || isHR || isManager) {
+      base.push({ icon: '📊', label: 'Reports', path: '/reports' });
+    }
+
+    if (isAdmin) {
+      base.push({ icon: '⚙️', label: 'Settings', path: '/settings' });
+    }
+
+    return base;
+  }, [isAdmin, isHR, isManager, isEmployee]);
+
   const pendingLeaveCount = useMemo(() => {
     if (!leaves || !user) return 0;
-    if (isHRManager) {
-      return leaves.filter((l) => l.status === 'pending').length;
+    if (isAdmin || isHR) {
+      return leaves.filter((l) => l.status === 'Pending').length;
     }
-    return leaves.filter((l) => l.employeeId === user.id && l.status === 'pending').length;
-  }, [leaves, isHRManager, user]);
+    return leaves.filter(
+      (l) => getLeaveEmployeeId(l) === user.id && l.status === 'Pending',
+    ).length;
+  }, [leaves, isAdmin, isHR, user]);
 
-  const navItems = isHRManager ? HR_MANAGER_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
-  const pageName = formatPageName(location.pathname);
+  const pageName = useMemo(() => {
+    const segment = location.pathname.split('/').filter(Boolean).pop() ?? 'home';
+    return segment.charAt(0).toUpperCase() + segment.slice(1);
+  }, [location.pathname]);
+
   const isActive = (path: string): boolean => location.pathname === path;
+
+  const badge = ROLE_BADGE[role];
 
   return (
     <div className="flex h-screen">
-      <NavigationProgress key={location.pathname} />
-
       <aside className="fixed left-0 top-0 flex h-screen w-14 flex-col border-r border-slate-700 bg-slate-900 md:w-60">
         <div className="p-4">
           <div className="flex items-center justify-center gap-3 md:justify-start">
@@ -113,17 +132,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {user.name}
                   </p>
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      isHRManager
-                        ? 'bg-blue-600/20 text-blue-300'
-                        : 'bg-gray-700 text-gray-300'
-                    }`}
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.bg} ${badge.text}`}
                   >
-                    {isHRManager ? 'Admin' : 'Staff'}
+                    {badge.label}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400">
-                  {formatRoleLabel(user.role)}
+                  {role === 'Admin' ? 'Administrator' : role}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -152,7 +167,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </button>
 
           <ApiStatus />
-
           <p className="hidden text-center text-[10px] text-gray-500 md:block">v1.0.0</p>
         </div>
       </aside>

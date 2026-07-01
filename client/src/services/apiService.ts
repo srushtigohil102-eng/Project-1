@@ -1,81 +1,166 @@
 import apiFetch from '../utils/api';
 
 // ==========================================
-// Helper: normalize MongoDB _id → id
+// Generic API Response Wrapper
 // ==========================================
 
-type MongoDoc = Record<string, unknown>;
-
-function toAppEntity<T extends { id: string }>(doc: MongoDoc): T {
-  const { _id, ...rest } = doc;
-  return { id: _id as string, ...rest } as unknown as T;
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  pagination?: { page: number; limit: number; total: number; pages: number };
 }
 
 // ==========================================
-// TypeScript Interfaces
+// Type Aliases
+// ==========================================
+
+export type EmployeeRole = 'Admin' | 'HR' | 'Manager' | 'Employee';
+export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';
+export type LeaveType = 'Sick' | 'Casual' | 'Annual' | 'Maternity' | 'Paternity' | 'Unpaid' | 'Bereavement' | 'Study';
+export type LeaveStatus = 'Pending' | 'Approved' | 'Rejected';
+export type PayrollStatus = 'Processed' | 'Paid';
+
+// ==========================================
+// Department Interface
+// ==========================================
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  budget: number;
+  location: string;
+  phoneNumber: string;
+  email: string;
+  departmentHead: string;
+}
+
+// ==========================================
+// Employee Interface (real shape from backend)
 // ==========================================
 
 export interface Employee {
   id: string;
-  name: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
   email: string;
-  department: string;
-  role: string;
-  status: 'active' | 'inactive';
+  phoneNumber: string;
+  role: EmployeeRole;
+  department: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  designation: string;
   salary: number;
+  status: EmployeeStatus;
+  isActive: boolean;
+  manager: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+  } | null;
+  joiningDate: string;
   createdAt: string;
 }
 
 export interface CreateEmployeeData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  phone?: string;
-  dateOfBirth?: string;
-  gender?: string;
+  phoneNumber: string;
+  role: EmployeeRole;
   department: string;
-  role: string;
-  employmentType: string;
-  reportingManager?: string;
-  startDate: string;
-  basicSalary: number;
-  allowances: number;
-  systemRole: string;
+  designation: string;
+  salary: number;
+  dateOfBirth: string;
+  gender: string;
+  joiningDate: string;
   password?: string;
 }
 
+// ==========================================
+// Leave Request Interface
+// ==========================================
+
 export interface LeaveRequest {
   id: string;
-  employeeId: string;
-  employeeName: string;
-  leaveType: string;
-  fromDate: string;
-  toDate: string;
+  employee: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    employeeId: string;
+  };
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  isHalfDay: boolean;
+  numberOfDays: number;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: LeaveStatus;
+  approvedBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+  } | null;
+  approvedAt?: string;
+  rejectionReason?: string;
+  appliedAt: string;
+  notifiedTo: string[];
   createdAt: string;
-  rejectReason?: string;
 }
 
 export interface ApplyLeaveData {
   leaveType: string;
-  fromDate: string;
-  toDate: string;
+  startDate: string;
+  endDate: string;
+  isHalfDay: boolean;
   reason: string;
 }
 
+// ==========================================
+// Payroll Record Interface
+// ==========================================
+
 export interface PayrollRecord {
   id: string;
-  employeeId: string;
-  employeeName: string;
-  department: string;
-  month: number;
+  employee: string | { _id?: string; id?: string; firstName?: string; lastName?: string; fullName?: string; email?: string; employeeId?: string };
+  month: string;
   year: number;
-  basicSalary: number;
-  allowances: number;
-  deductions: number;
-  netPay: number;
-  status: 'processed' | 'pending';
-  processedAt: string;
+  salaryBreakdown: {
+    basic: number;
+    hra: number;
+    da: number;
+    ta: number;
+    medicalAllowance: number;
+    specialAllowance: number;
+    bonus: number;
+  };
+  deductionBreakdown: {
+    tax: number;
+    providentFund: number;
+    professionalTax: number;
+    insurance: number;
+  };
+  totalWorkingDays: number;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  holidayDays: number;
+  paymentDate: string | null;
+  status: PayrollStatus;
+  generatedBy: string;
+  createdAt: string;
 }
 
 // ==========================================
@@ -83,13 +168,13 @@ export interface PayrollRecord {
 // ==========================================
 
 export async function getEmployees(): Promise<Employee[]> {
-  const data = await apiFetch<MongoDoc[]>('/api/employees');
-  return data.map(toAppEntity<Employee>);
+  const res = await apiFetch<ApiResponse<Employee[]>>('/api/employees');
+  return res.data;
 }
 
 export async function getEmployeeById(id: string): Promise<Employee> {
-  const data = await apiFetch<MongoDoc>(`/api/employees/${id}`);
-  return toAppEntity<Employee>(data);
+  const res = await apiFetch<ApiResponse<Employee>>(`/api/employees/${id}`);
+  return res.data;
 }
 
 export async function checkEmailAvailable(email: string): Promise<{ available: boolean }> {
@@ -99,11 +184,11 @@ export async function checkEmailAvailable(email: string): Promise<{ available: b
 export async function createEmployee(
   payload: CreateEmployeeData,
 ): Promise<Employee> {
-  const data = await apiFetch<MongoDoc>('/api/employees', {
+  const res = await apiFetch<ApiResponse<Employee>>('/api/employees', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return toAppEntity<Employee>(data);
+  return res.data;
 }
 
 export async function deleteEmployee(id: string): Promise<void> {
@@ -117,129 +202,82 @@ export async function deleteEmployee(id: string): Promise<void> {
 // ==========================================
 
 export async function getLeaves(): Promise<LeaveRequest[]> {
-  const data = await apiFetch<MongoDoc[]>('/api/leaves');
-  return data.map(toAppEntity<LeaveRequest>);
+  const res = await apiFetch<ApiResponse<LeaveRequest[]>>('/api/leaves');
+  return res.data;
 }
 
 export async function applyLeave(payload: ApplyLeaveData): Promise<LeaveRequest> {
-  const data = await apiFetch<MongoDoc>('/api/leaves/apply', {
+  const res = await apiFetch<ApiResponse<LeaveRequest>>('/api/leaves/apply', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return toAppEntity<LeaveRequest>(data);
+  return res.data;
 }
 
 export async function approveLeave(id: string): Promise<LeaveRequest> {
-  const data = await apiFetch<MongoDoc>(`/api/leaves/${id}/approve`, {
+  const res = await apiFetch<ApiResponse<LeaveRequest>>(`/api/leaves/${id}/approve`, {
     method: 'PUT',
   });
-  return toAppEntity<LeaveRequest>(data);
+  return res.data;
 }
 
 export async function rejectLeave(
   id: string,
   reason: string,
 ): Promise<LeaveRequest> {
-  const data = await apiFetch<MongoDoc>(`/api/leaves/${id}/reject`, {
+  const res = await apiFetch<ApiResponse<LeaveRequest>>(`/api/leaves/${id}/reject`, {
     method: 'PUT',
     body: JSON.stringify({ reason }),
   });
-  return toAppEntity<LeaveRequest>(data);
-}
-
-// ==========================================
-// Runtime Shape Validation
-// ==========================================
-
-const PAYROLL_RECORD_KEYS: (keyof PayrollRecord)[] = [
-  'id', 'employeeId', 'employeeName', 'department', 'month', 'year',
-  'basicSalary', 'allowances', 'deductions', 'netPay',
-  'status', 'processedAt',
-];
-
-const NUMBER_FIELDS: Set<keyof PayrollRecord> = new Set([
-  'month', 'year', 'basicSalary', 'allowances', 'deductions', 'netPay',
-]);
-
-/**
- * Runtime type guard that verifies an unknown value matches PayrollRecord.
- * Logs a warning to the console on first mismatch so integration bugs get
- * caught early instead of silently corrupting the UI.
- */
-export function validatePayrollRecord(data: unknown): data is PayrollRecord {
-  if (data === null || data === undefined || typeof data !== 'object') {
-    console.warn('[validatePayrollRecord] expected an object, got', typeof data);
-    return false;
-  }
-
-  const record = data as Record<string, unknown>;
-
-  for (const key of PAYROLL_RECORD_KEYS) {
-    if (!(key in record)) {
-      console.warn(`[validatePayrollRecord] missing field "${key}" in`, record);
-      return false;
-    }
-
-    const value = record[key];
-
-    if (NUMBER_FIELDS.has(key)) {
-      if (typeof value !== 'number' || Number.isNaN(value)) {
-        console.warn(
-          `[validatePayrollRecord] field "${key}" should be a number, got ${typeof value} (${String(value)})`,
-        );
-        return false;
-      }
-    } else if (typeof value !== 'string') {
-      console.warn(
-        `[validatePayrollRecord] field "${key}" should be a string, got ${typeof value} (${String(value)})`,
-      );
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Validate every record in an array, warn once per invalid record.
- */
-function validatePayrollRecords(records: unknown[]): void {
-  for (let i = 0; i < records.length; i++) {
-    if (!validatePayrollRecord(records[i])) {
-      console.warn(`[validatePayrollRecord] record at index ${i} failed validation`);
-    }
-  }
+  return res.data;
 }
 
 // ==========================================
 // Payroll API Functions
 // ==========================================
 
-export async function getPayroll(): Promise<PayrollRecord[]> {
-  const data = await apiFetch<MongoDoc[]>('/api/payroll');
-  const records = data.map(toAppEntity<PayrollRecord>);
-  if (import.meta.env.DEV) {
-    validatePayrollRecords(records);
+function validatePayrollRecord(record: unknown, index: number): void {
+  if (!record || typeof record !== 'object') {
+    console.warn(`[Payroll] Record at index ${index} is not an object:`, record);
+    return;
   }
-  return records;
+  const r = record as Record<string, unknown>;
+  if (!r.salaryBreakdown || typeof r.salaryBreakdown !== 'object') {
+    console.warn(`[Payroll] Record at index ${index} missing salaryBreakdown:`, r);
+  }
+  if (!r.deductionBreakdown || typeof r.deductionBreakdown !== 'object') {
+    console.warn(`[Payroll] Record at index ${index} missing deductionBreakdown:`, r);
+  }
+}
+
+export async function getPayroll(): Promise<PayrollRecord[]> {
+  const res = await apiFetch<ApiResponse<PayrollRecord[]>>('/api/payroll');
+  if (Array.isArray(res.data)) {
+    res.data.forEach(validatePayrollRecord);
+  } else {
+    console.warn('[Payroll] Expected res.data to be an array, got:', typeof res.data);
+  }
+  return res.data;
 }
 
 export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]> {
-  const data = await apiFetch<MongoDoc[]>(`/api/payroll/${id}`);
-  const records = data.map(toAppEntity<PayrollRecord>);
-  if (import.meta.env.DEV) {
-    validatePayrollRecords(records);
+  const res = await apiFetch<ApiResponse<PayrollRecord[]>>(`/api/payroll/${id}`);
+  if (Array.isArray(res.data)) {
+    res.data.forEach(validatePayrollRecord);
+  } else {
+    console.warn('[Payroll] getPayrollByEmployee: Expected res.data to be an array, got:', typeof res.data);
   }
-  return records;
+  return res.data;
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {
-  const data = await apiFetch<MongoDoc[]>('/api/payroll/run', {
+  const res = await apiFetch<ApiResponse<PayrollRecord[]>>('/api/payroll/run', {
     method: 'POST',
   });
-  const records = data.map(toAppEntity<PayrollRecord>);
-  if (import.meta.env.DEV) {
-    validatePayrollRecords(records);
+  if (Array.isArray(res.data)) {
+    res.data.forEach(validatePayrollRecord);
+  } else {
+    console.warn('[Payroll] runPayroll: Expected res.data to be an array, got:', typeof res.data);
   }
-  return records;
+  return res.data;
 }

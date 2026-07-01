@@ -17,15 +17,22 @@ import {
   type UserType,
 } from '../utils/authStorage';
 import { navigateTo, setNavigate } from '../utils/navigation';
+import type { EmployeeRole } from '../services/apiService';
 
 export type { UserType };
+
+export type { EmployeeRole };
 
 interface AuthContextValue {
   token: string | null;
   user: UserType | null;
   isLoggedIn: boolean;
-  isHRManager: boolean;
+  isAdmin: boolean;
+  isHR: boolean;
+  isManager: boolean;
   isEmployee: boolean;
+  /** True for Admin or HR */
+  isHRManager: boolean;
   login: (newToken: string, newUser: UserType, rememberMe?: boolean) => void;
   logout: () => void;
 }
@@ -69,13 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigateTo('/');
   }, []);
 
+  const role = user?.role;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
       user,
       isLoggedIn: token !== null,
-      isHRManager: user?.role === 'hr_manager',
-      isEmployee: user?.role === 'employee',
+      isAdmin: role === 'Admin',
+      isHR: role === 'HR',
+      isManager: role === 'Manager',
+      isEmployee: role === 'Employee',
+      isHRManager: role === 'Admin' || role === 'HR',
       login,
       logout,
     }),

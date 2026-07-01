@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import type { UserType } from '../utils/authStorage';
+import type { EmployeeRole } from '../services/apiService';
 
 interface Props {
   children: ReactNode;
-  requiredRole?: UserType['role'];
+  allowedRoles?: EmployeeRole[];
 }
 
 function AccessDenied() {
@@ -22,7 +22,7 @@ function AccessDenied() {
 
         <h1 className="mt-6 text-2xl font-semibold text-gray-800">Access Restricted</h1>
         <p className="mt-2 text-center text-gray-500">
-          You need HR Manager permissions to view this page.
+          You do not have the required permissions to view this page.
         </p>
         <p className="mt-1 text-center text-sm text-gray-400">
           Contact your administrator if you believe this is an error.
@@ -40,14 +40,14 @@ function AccessDenied() {
   );
 }
 
-function ProtectedRoute({ children, requiredRole }: Props) {
-  const { isLoggedIn, isHRManager } = useAuth();
+function ProtectedRoute({ children, allowedRoles }: Props) {
+  const { isLoggedIn, user } = useAuth();
 
   if (!isLoggedIn) {
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole === 'hr_manager' && !isHRManager) {
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <AccessDenied />;
   }
 

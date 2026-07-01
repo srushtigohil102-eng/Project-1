@@ -16,9 +16,11 @@ export const verifyTokenMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    console.log("🔍 DEBUG - All headers received:", JSON.stringify(req.headers));
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("🔍 DEBUG - Authorization header missing or invalid. authHeader value:", authHeader);
       res.status(401).json({ success: false, message: "Access denied. No token provided." });
       return;
     }

@@ -12,16 +12,7 @@ import useEmployees, {
 import { showSuccess, showError } from '../utils/toast';
 import { formatTimeAgo } from '../utils/helpers';
 
-const DEPARTMENT_OPTIONS = [
-  'All Departments',
-  'Engineering',
-  'Design',
-  'HR',
-  'Finance',
-  'Marketing',
-] as const;
-
-type DepartmentFilter = (typeof DEPARTMENT_OPTIONS)[number];
+type DepartmentFilter = string;
 type SortField = 'name' | 'salary' | 'status' | null;
 type SortOrder = 'asc' | 'desc';
 
@@ -59,6 +50,13 @@ function formatSalary(amount: number): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function mapStatus(status: string): 'active' | 'inactive' | 'pending' {
+  const lower = status.toLowerCase();
+  if (lower === 'active' || lower === 'on leave') return 'active';
+  if (lower === 'inactive') return 'inactive';
+  return 'pending';
 }
 
 function SearchIcon() {
@@ -120,23 +118,17 @@ function SearchInput({ value, onChange }: SearchInputProps) {
 interface DepartmentSelectProps {
   value: DepartmentFilter;
   onChange: (value: DepartmentFilter) => void;
+  options: string[];
 }
 
-function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
+function DepartmentSelect({ value, onChange, options }: DepartmentSelectProps) {
   return (
     <select
       value={value}
-      onChange={(e) => {
-        const nextValue = e.target.value;
-        if (
-          DEPARTMENT_OPTIONS.includes(nextValue as DepartmentFilter)
-        ) {
-          onChange(nextValue as DepartmentFilter);
-        }
-      }}
+      onChange={(e) => onChange(e.target.value)}
       className="w-full shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-52"
     >
-      {DEPARTMENT_OPTIONS.map((option) => (
+      {options.map((option) => (
         <option key={option} value={option}>
           {option}
         </option>
@@ -278,23 +270,23 @@ function EmployeeRow({
       )}
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <Avatar name={employee.name} />
+          <Avatar name={employee.fullName} />
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => onViewDetails(employee)}
               className="truncate font-medium text-gray-900 hover:text-blue-600 hover:underline text-left focus:outline-none cursor-pointer"
             >
-              {employee.name}
+              {employee.fullName}
             </button>
             <p className="truncate text-sm text-gray-500">{employee.email}</p>
           </div>
         </div>
       </td>
-      <td className="max-w-[150px] truncate px-4 py-4 text-gray-700" title={employee.department}>{employee.department || '—'}</td>
-      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.role || '—'}>{employee.role || '—'}</td>
+      <td className="max-w-[150px] truncate px-4 py-4 text-gray-700" title={employee.department.name}>{employee.department.name}</td>
+      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.designation}>{employee.designation}</td>
       <td className="px-4 py-4">
-        <StatusBadge status={employee.status} />
+        <StatusBadge status={mapStatus(employee.status)} />
       </td>
       <td className="px-4 py-4 font-medium text-gray-900">
         {formatSalary(employee.salary)}
@@ -451,6 +443,12 @@ function EmployeesPage() {
 
   const deletingIdRef = useRef<string | null>(null);
 
+  const departmentOptions = useMemo(() => {
+    if (!employees) return ['All Departments'];
+    const deps = new Set(employees.map((e) => e.department.name));
+    return ['All Departments', ...Array.from(deps).sort()];
+  }, [employees]);
+
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
 
@@ -464,12 +462,12 @@ function EmployeesPage() {
     return employees.filter((employee) => {
       const matchesSearch =
         !query ||
-        employee.name.toLowerCase().includes(query) ||
+        employee.fullName.toLowerCase().includes(query) ||
         employee.email.toLowerCase().includes(query);
 
       const matchesDepartment =
         department === 'All Departments' ||
-        employee.department.toLowerCase() === department.toLowerCase();
+        employee.department.name.toLowerCase() === department.toLowerCase();
 
       return matchesSearch && matchesDepartment;
     });
@@ -484,20 +482,21 @@ function EmployeesPage() {
     }
 
     return [...filteredEmployees].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
+      let aValue: string | number;
+      let bValue: string | number;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
+      if (sortField === 'name') {
+        aValue = a.fullName.toLowerCase();
+        bValue = b.fullName.toLowerCase();
+      } else {
+        aValue = a[sortField];
+        bValue = b[sortField];
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
   }, [filteredEmployees, sortField, sortOrder]);
@@ -588,14 +587,14 @@ function EmployeesPage() {
   }, []);
 
   const handleEdit = useCallback((employee: Employee): void => {
-    showSuccess(`Edit employee: ${employee.name}`);
+    showSuccess(`Edit employee: ${employee.fullName}`);
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
     setConfirmState({
       isOpen: true,
       title: 'Delete Employee',
-      message: `Are you sure you want to delete ${employee.name}? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${employee.fullName}? This action cannot be undone.`,
       employeeId: employee.id,
     });
   }, []);
@@ -673,7 +672,7 @@ function EmployeesPage() {
       <div className="mb-6 flex flex-col gap-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <SearchInput value={search} onChange={handleSearchChange} />
-          <DepartmentSelect value={department} onChange={handleDepartmentChange} />
+          <DepartmentSelect value={department} onChange={handleDepartmentChange} options={departmentOptions} />
         </div>
 
         {hasActiveFilters && (
@@ -765,7 +764,7 @@ function EmployeesPage() {
                     Department
                   </th>
                   <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Role
+                    Designation
                   </th>
                   <th
                     onClick={() => handleSort('status')}
@@ -932,23 +931,20 @@ function EmployeesPage() {
               {/* Detail Content */}
               <div className="flex-1 overflow-y-auto py-6">
                 <div className="flex flex-col items-center text-center mb-8">
-                  {/* Large Custom Initials Avatar */}
                   <div className="flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold bg-blue-600 text-white shadow-md border-4 border-white ring-4 ring-blue-100">
-                    {selectedEmployee.name
-                      ? selectedEmployee.name
-                          .trim()
-                          .split(/\s+/)
-                          .slice(0, 2)
-                          .map((w) => w[0].toUpperCase())
-                          .join('')
-                      : '?'}
+                    {selectedEmployee.fullName
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((w) => w[0].toUpperCase())
+                      .join('')}
                   </div>
                   <h3 className="mt-4 text-xl font-semibold text-gray-900">
-                    {selectedEmployee.name}
+                    {selectedEmployee.fullName}
                   </h3>
-                  <p className="text-sm text-gray-500">{selectedEmployee.role}</p>
+                  <p className="text-sm text-gray-500">{selectedEmployee.designation}</p>
                   <div className="mt-3">
-                    <StatusBadge status={selectedEmployee.status} />
+                    <StatusBadge status={mapStatus(selectedEmployee.status)} />
                   </div>
                 </div>
 
@@ -967,16 +963,16 @@ function EmployeesPage() {
                       Department
                     </span>
                     <span className="mt-1 block text-sm font-medium text-gray-900">
-                      {selectedEmployee.department}
+                      {selectedEmployee.department.name}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Role Title
+                      Designation
                     </span>
                     <span className="mt-1 block text-sm font-medium text-gray-900">
-                      {selectedEmployee.role}
+                      {selectedEmployee.designation}
                     </span>
                   </div>
 
@@ -1012,7 +1008,7 @@ function EmployeesPage() {
                   type="button"
                   onClick={() => {
                     showSuccess(
-                      `Edit feature coming soon for ${selectedEmployee.name}`,
+                      `Edit feature coming soon for ${selectedEmployee.fullName}`,
                     );
                   }}
                   className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"

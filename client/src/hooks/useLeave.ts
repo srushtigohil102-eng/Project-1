@@ -53,7 +53,7 @@ export function useApproveLeave() {
 
       queryClient.setQueryData<LeaveRequest[]>(['leaves'], (old) =>
         old?.map((leave) =>
-          leave.id === id ? { ...leave, status: 'approved' as const } : leave,
+          leave.id === id ? { ...leave, status: 'Approved' as const } : leave,
         ),
       );
 

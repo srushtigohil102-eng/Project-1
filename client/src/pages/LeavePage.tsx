@@ -5,7 +5,7 @@ import {
   useApproveLeave,
   useRejectLeave,
 } from '../hooks/useLeave';
-import { calculateLeaveDays, formatDate, formatTimeAgo } from '../utils/helpers';
+import { formatDate, formatTimeAgo } from '../utils/helpers';
 import StatusBadge from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
 import ApplyLeaveModal from '../components/ApplyLeaveModal';
@@ -211,20 +211,20 @@ function LeavePage() {
 
   // Stats Calculations
   const employeeStats = useMemo(() => {
-    const employeeLeaves = leaves.filter((l) => l.employeeId === user?.id);
+    const employeeLeaves = leaves.filter((l) => l.employee.id === user?.id);
     const total = employeeLeaves.length;
-    const approved = employeeLeaves.filter((l) => l.status === 'approved').length;
-    const pending = employeeLeaves.filter((l) => l.status === 'pending').length;
-    const rejected = employeeLeaves.filter((l) => l.status === 'rejected').length;
+    const approved = employeeLeaves.filter((l) => l.status === 'Approved').length;
+    const pending = employeeLeaves.filter((l) => l.status === 'Pending').length;
+    const rejected = employeeLeaves.filter((l) => l.status === 'Rejected').length;
     return { total, approved, pending, rejected };
   }, [leaves, user?.id]);
 
   const managerStats = useMemo(() => {
     const thisMonthLeaves = leaves.filter((l) => isInCurrentMonth(l.createdAt));
     const total = thisMonthLeaves.length;
-    const approved = thisMonthLeaves.filter((l) => l.status === 'approved').length;
-    const pending = thisMonthLeaves.filter((l) => l.status === 'pending').length;
-    const rejected = thisMonthLeaves.filter((l) => l.status === 'rejected').length;
+    const approved = thisMonthLeaves.filter((l) => l.status === 'Approved').length;
+    const pending = thisMonthLeaves.filter((l) => l.status === 'Pending').length;
+    const rejected = thisMonthLeaves.filter((l) => l.status === 'Rejected').length;
     return { total, approved, pending, rejected };
   }, [leaves]);
 
@@ -233,24 +233,24 @@ function LeavePage() {
     if (isHRManager) {
       return leaves;
     }
-    return leaves.filter((l) => l.employeeId === user?.id);
+    return leaves.filter((l) => l.employee.id === user?.id);
   }, [leaves, isHRManager, user?.id]);
 
   const filteredLeaves = useMemo(() => {
     if (isHRManager) {
       if (managerTab === 'pending') {
-        return displayedLeaves.filter((l) => l.status === 'pending');
+        return displayedLeaves.filter((l) => l.status === 'Pending');
       }
       if (managerTab === 'processed') {
-        return displayedLeaves.filter((l) => l.status === 'approved' || l.status === 'rejected');
+        return displayedLeaves.filter((l) => l.status === 'Approved' || l.status === 'Rejected');
       }
       return displayedLeaves;
     } else {
       if (activeTab === 'pending') {
-        return displayedLeaves.filter((l) => l.status === 'pending');
+        return displayedLeaves.filter((l) => l.status === 'Pending');
       }
       if (activeTab === 'approved') {
-        return displayedLeaves.filter((l) => l.status === 'approved');
+        return displayedLeaves.filter((l) => l.status === 'Approved');
       }
       return displayedLeaves;
     }
@@ -269,11 +269,11 @@ function LeavePage() {
 
   // Reject modal open
   const openRejectModal = useCallback((leave: LeaveRequest): void => {
-    const dateRange = `${formatDate(leave.fromDate)} - ${formatDate(leave.toDate)}`;
+    const dateRange = `${formatDate(leave.startDate)} - ${formatDate(leave.endDate)}`;
     setRejectModalState({
       isOpen: true,
       leaveId: leave.id,
-      employeeName: leave.employeeName,
+      employeeName: leave.employee.fullName,
       leaveDates: dateRange,
     });
   }, []);
@@ -387,14 +387,14 @@ function LeavePage() {
               />
               <TabButton
                 label="Pending Approval"
-                count={displayedLeaves.filter((l) => l.status === 'pending').length}
+                count={displayedLeaves.filter((l) => l.status === 'Pending').length}
                 isActive={managerTab === 'pending'}
                 activeColor="blue"
                 onClick={() => setManagerTab('pending')}
               />
               <TabButton
                 label="Processed"
-                count={displayedLeaves.filter((l) => l.status === 'approved' || l.status === 'rejected').length}
+                count={displayedLeaves.filter((l) => l.status === 'Approved' || l.status === 'Rejected').length}
                 isActive={managerTab === 'processed'}
                 activeColor="blue"
                 onClick={() => setManagerTab('processed')}
@@ -411,14 +411,14 @@ function LeavePage() {
               />
               <TabButton
                 label="Pending"
-                count={displayedLeaves.filter((l) => l.status === 'pending').length}
+                count={displayedLeaves.filter((l) => l.status === 'Pending').length}
                 isActive={activeTab === 'pending'}
                 activeColor="emerald"
                 onClick={() => setActiveTab('pending')}
               />
               <TabButton
                 label="Approved"
-                count={displayedLeaves.filter((l) => l.status === 'approved').length}
+                count={displayedLeaves.filter((l) => l.status === 'Approved').length}
                 isActive={activeTab === 'approved'}
                 activeColor="emerald"
                 onClick={() => setActiveTab('approved')}
@@ -436,8 +436,8 @@ function LeavePage() {
               <tr>
                 <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
                 <th scope="col" className="min-w-[130px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
-                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From</th>
-                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Start Date</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">End Date</th>
                 <th scope="col" className="min-w-[70px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
                 <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
                 <th scope="col" className="min-w-[100px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -446,8 +446,8 @@ function LeavePage() {
             ) : (
               <tr>
                 <th scope="col" className="min-w-[130px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Leave Type</th>
-                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">From Date</th>
-                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">To Date</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Start Date</th>
+                <th scope="col" className="min-w-[110px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">End Date</th>
                 <th scope="col" className="min-w-[70px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
                 <th scope="col" className="min-w-[200px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
                 <th scope="col" className="min-w-[100px] px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -459,7 +459,7 @@ function LeavePage() {
             {isLoading ? (
               <SkeletonTable columnsCount={isHRManager ? 8 : 7} />
             ) : error ? (
-              <tr>
+              <tr key="error">
                 <td colSpan={isHRManager ? 8 : 7} className="px-6 py-10 text-center">
                   <div className="flex flex-col items-center justify-center text-red-600 gap-2">
                     <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -477,7 +477,7 @@ function LeavePage() {
                 </td>
               </tr>
             ) : displayedLeaves.length === 0 ? (
-              <tr>
+              <tr key="empty-all">
                 <td colSpan={isHRManager ? 8 : 7} className="px-6 py-10">
                   <EmptyState
                     message={
@@ -494,7 +494,7 @@ function LeavePage() {
                 </td>
               </tr>
             ) : filteredLeaves.length === 0 ? (
-              <tr>
+              <tr key="empty-filtered">
                 <td colSpan={isHRManager ? 8 : 7} className="px-6 py-10">
                   <EmptyState
                     message={
@@ -519,7 +519,7 @@ function LeavePage() {
                 if (isHRManager) {
                   const isApproving = approveMutation.isPending && approveMutation.variables === leave.id;
                   const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === leave.id;
-                  const isPending = leave.status === 'pending';
+                  const isPending = leave.status === 'Pending';
 
                   return (
                     <tr
@@ -529,10 +529,9 @@ function LeavePage() {
                     >
                       <td className="max-w-48 truncate px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <Avatar name={leave.employeeName} size="md" />
+                          <Avatar name={leave.employee.fullName} size="md" />
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-gray-900" title={leave.employeeName}>{leave.employeeName}</div>
-                            <div className="text-xs text-gray-500">ID: {leave.employeeId}</div>
+                            <div className="truncate text-sm font-semibold text-gray-900" title={leave.employee.fullName}>{leave.employee.fullName}</div>
                           </div>
                         </div>
                       </td>
@@ -540,13 +539,13 @@ function LeavePage() {
                         {leave.leaveType}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        {formatDate(leave.fromDate)}
+                        {formatDate(leave.startDate)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        {formatDate(leave.toDate)}
+                        {formatDate(leave.endDate)}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                        {calculateLeaveDays(leave.fromDate, leave.toDate)}
+                        {leave.numberOfDays}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title={leave.reason}>
                         {leave.reason}
@@ -585,7 +584,7 @@ function LeavePage() {
                               {isRejecting ? 'Rejecting...' : 'Reject'}
                             </button>
                           </div>
-                        ) : leave.status === 'approved' ? (
+                          ) : leave.status === 'Approved' ? (
                           <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
                             <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                             Approved
@@ -606,13 +605,13 @@ function LeavePage() {
                         {leave.leaveType}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        {formatDate(leave.fromDate)}
+                        {formatDate(leave.startDate)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                        {formatDate(leave.toDate)}
+                        {formatDate(leave.endDate)}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                        {calculateLeaveDays(leave.fromDate, leave.toDate)}
+                        {leave.numberOfDays}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title={leave.reason}>
                         {leave.reason}
@@ -684,10 +683,9 @@ function LeavePage() {
               <div className="flex-1 overflow-y-auto mt-6 space-y-6">
                 {/* Employee Info */}
                 <div className="flex items-center gap-4">
-                  <Avatar name={selectedLeave.employeeName} size="lg" />
+                  <Avatar name={selectedLeave.employee.fullName} size="lg" />
                   <div>
-                    <p className="text-base font-bold text-gray-900">{selectedLeave.employeeName}</p>
-                    <p className="text-sm text-gray-500">ID: {selectedLeave.employeeId}</p>
+                    <p className="text-base font-bold text-gray-900">{selectedLeave.employee.fullName}</p>
                   </div>
                 </div>
 
@@ -710,7 +708,7 @@ function LeavePage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">From</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.fromDate)}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.startDate)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-4 border border-gray-100">
@@ -719,7 +717,7 @@ function LeavePage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">To</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.toDate)}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{formatDate(selectedLeave.endDate)}</p>
                     </div>
                   </div>
                 </div>
@@ -732,7 +730,7 @@ function LeavePage() {
                   <div>
                     <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Duration</p>
                     <p className="text-sm font-bold text-emerald-800 mt-0.5">
-                      {calculateLeaveDays(selectedLeave.fromDate, selectedLeave.toDate)} working day{calculateLeaveDays(selectedLeave.fromDate, selectedLeave.toDate) !== 1 ? 's' : ''}
+                      {selectedLeave.numberOfDays} working day{selectedLeave.numberOfDays !== 1 ? 's' : ''}
                     </p>
                   </div>
                 </div>
@@ -763,11 +761,11 @@ function LeavePage() {
                 </div>
 
                 {/* Rejection Reason (if rejected) */}
-                {selectedLeave.status === 'rejected' && selectedLeave.rejectReason && (
+                {selectedLeave.status === 'Rejected' && selectedLeave.rejectionReason && (
                   <div>
                     <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">Rejection Reason</p>
                     <div className="rounded-lg bg-red-50 p-4 border border-red-100">
-                      <p className="text-sm text-red-800 leading-relaxed whitespace-pre-wrap">{selectedLeave.rejectReason}</p>
+                      <p className="text-sm text-red-800 leading-relaxed whitespace-pre-wrap">{selectedLeave.rejectionReason}</p>
                     </div>
                   </div>
                 )}

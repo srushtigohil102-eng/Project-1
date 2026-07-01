@@ -41,8 +41,10 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOGIN_URL = '/api/auth/login';
 
 function mapRole(role: string): UserType['role'] {
-  if (role === 'Admin' || role === 'HR' || role === 'Manager') return 'hr_manager';
-  return 'employee';
+  if (['Admin', 'HR', 'Manager', 'Employee'].includes(role)) {
+    return role as UserType['role'];
+  }
+  return 'Employee';
 }
 
 function validateForm(data: FormData): Errors {
@@ -278,13 +280,13 @@ function LoginPage() {
                   id: 'demo-emp-1',
                   name: 'Rahul Sharma',
                   email: 'rahul@company.com',
-                  role: 'hr_manager',
+                  role: 'Admin',
                 });
                 navigate('/dashboard');
               }}
               className="w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 cursor-pointer"
             >
-              Continue as HR Manager (Demo)
+              Continue as Admin (Demo)
             </button>
             <button
               type="button"
@@ -293,7 +295,7 @@ function LoginPage() {
                   id: 'demo-emp-2',
                   name: 'Priya Nair',
                   email: 'priya@company.com',
-                  role: 'employee',
+                  role: 'Employee',
                 });
                 navigate('/dashboard');
               }}

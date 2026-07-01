@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApplyLeave } from '../hooks/useLeave';
-import { calculateLeaveDays } from '../utils/helpers';
 import { showSuccess, showError } from '../utils/toast';
 import useFocusTrap from '../hooks/useFocusTrap';
+import useAuth from '../hooks/useAuth';
 
 interface ApplyLeaveModalProps {
   isOpen: boolean;
@@ -11,17 +11,29 @@ interface ApplyLeaveModalProps {
 
 interface FormData {
   leaveType: string;
-  fromDate: string;
-  toDate: string;
+  startDate: string;
+  endDate: string;
+  isHalfDay: boolean;
   reason: string;
 }
 
 interface FormErrors {
   leaveType?: string;
-  fromDate?: string;
-  toDate?: string;
+  startDate?: string;
+  endDate?: string;
   reason?: string;
 }
+
+const LEAVE_TYPE_OPTIONS = [
+  { value: 'Sick', label: 'Sick Leave' },
+  { value: 'Casual', label: 'Casual Leave' },
+  { value: 'Annual', label: 'Annual Leave' },
+  { value: 'Maternity', label: 'Maternity Leave' },
+  { value: 'Paternity', label: 'Paternity Leave' },
+  { value: 'Unpaid', label: 'Unpaid Leave' },
+  { value: 'Bereavement', label: 'Bereavement Leave' },
+  { value: 'Study', label: 'Study Leave' },
+];
 
 function XIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -42,6 +54,7 @@ function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: strin
 
 function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
   const applyLeaveMutation = useApplyLeave();
+  const { user } = useAuth();
 
   const getTodayString = (): string => {
     const today = new Date();
@@ -52,36 +65,37 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
   };
 
   const initialFormState: FormData = {
-    leaveType: 'Sick Leave',
-    fromDate: '',
-    toDate: '',
+    leaveType: 'Sick',
+    startDate: '',
+    endDate: '',
+    isHalfDay: false,
     reason: '',
   };
 
   const [formData, setFormData] = useState<FormData>(initialFormState);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Form resets on mount when the parent uses conditional rendering.
-
-  // Duration auto-calculation
   const duration = useMemo(() => {
-    if (!formData.fromDate || !formData.toDate) return null;
-    return calculateLeaveDays(formData.fromDate, formData.toDate);
-  }, [formData.fromDate, formData.toDate]);
+    if (!formData.startDate || !formData.endDate) return null;
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays > 0 ? diffDays : 1;
+  }, [formData.startDate, formData.endDate]);
 
-  const handleFromDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData((prev) => {
-      const updated = { ...prev, fromDate: value };
-      // Auto-update To Date if it is before the From Date
-      if (prev.toDate && prev.toDate < value) {
-        updated.toDate = value;
+      const updated = { ...prev, startDate: value };
+      if (prev.endDate && prev.endDate < value) {
+        updated.endDate = value;
       }
       return updated;
     });
 
-    if (errors.fromDate) {
-      setErrors((prev) => ({ ...prev, fromDate: undefined }));
+    if (errors.startDate) {
+      setErrors((prev) => ({ ...prev, startDate: undefined }));
     }
   };
 
@@ -95,16 +109,16 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
       newErrors.leaveType = 'Leave type is required.';
     }
 
-    if (!formData.fromDate) {
-      newErrors.fromDate = 'From date is required.';
-    } else if (formData.fromDate < todayStr) {
-      newErrors.fromDate = 'From date cannot be in the past.';
+    if (!formData.startDate) {
+      newErrors.startDate = 'Start date is required.';
+    } else if (formData.startDate < todayStr) {
+      newErrors.startDate = 'Start date cannot be in the past.';
     }
 
-    if (!formData.toDate) {
-      newErrors.toDate = 'To date is required.';
-    } else if (formData.fromDate && formData.toDate < formData.fromDate) {
-      newErrors.toDate = 'To date must be the same as or after From date.';
+    if (!formData.endDate) {
+      newErrors.endDate = 'End date is required.';
+    } else if (formData.startDate && formData.endDate < formData.startDate) {
+      newErrors.endDate = 'End date must be the same as or after Start date.';
     }
 
     const trimmedReason = formData.reason.trim();
@@ -125,8 +139,9 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
     try {
       await applyLeaveMutation.mutateAsync({
         leaveType: formData.leaveType,
-        fromDate: formData.fromDate,
-        toDate: formData.toDate,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        isHalfDay: formData.isHalfDay,
         reason: trimmedReason,
       });
 
@@ -142,25 +157,22 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
   if (!isOpen) return null;
 
   const isSubmitDisabled =
-    !formData.fromDate ||
-    !formData.toDate ||
+    !formData.startDate ||
+    !formData.endDate ||
     !formData.reason.trim() ||
     applyLeaveMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Dark semi-transparent overlay covering full screen */}
       <div
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs transition-opacity duration-300"
         onClick={onClose}
       />
 
-      {/* White centered card */}
       <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[480px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
-        {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            Apply for Leave <span aria-hidden="true">📅</span>
+            Apply for Leave
           </h3>
           <button
             type="button"
@@ -172,9 +184,13 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
           </button>
         </div>
 
-        {/* Form */}
+        {user && (
+          <div className="mt-3 mb-1 text-sm text-gray-500">
+            <span className="font-semibold text-gray-700">{user.name}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Leave Type (Dropdown select) */}
           <div>
             <label htmlFor="leaveType" className="block text-sm font-semibold text-gray-700 mb-1">
               Leave Type <span className="text-red-500">*</span>
@@ -192,78 +208,84 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
                   : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20'
               }`}
             >
-              <option value="Sick Leave">Sick Leave</option>
-              <option value="Casual Leave">Casual Leave</option>
-              <option value="Earned Leave">Earned Leave</option>
-              <option value="Maternity Leave">Maternity Leave</option>
-              <option value="Paternity Leave">Paternity Leave</option>
-              <option value="Emergency Leave">Emergency Leave</option>
+              {LEAVE_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
             {errors.leaveType && (
               <p className="text-xs text-red-600 mt-1">{errors.leaveType}</p>
             )}
           </div>
 
-          {/* Dates Grid */}
           <div className="grid grid-cols-2 gap-4">
-            {/* From Date */}
             <div>
-              <label htmlFor="fromDate" className="block text-sm font-semibold text-gray-700 mb-1">
-                From Date <span className="text-red-500">*</span>
+              <label htmlFor="startDate" className="block text-sm font-semibold text-gray-700 mb-1">
+                Start Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
-                id="fromDate"
+                id="startDate"
                 min={getTodayString()}
-                value={formData.fromDate}
-                onChange={handleFromDateChange}
+                value={formData.startDate}
+                onChange={handleStartDateChange}
                 required
                 className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
-                  errors.fromDate
+                  errors.startDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20'
                 }`}
               />
-              {errors.fromDate && (
-                <p className="text-xs text-red-600 mt-1">{errors.fromDate}</p>
+              {errors.startDate && (
+                <p className="text-xs text-red-600 mt-1">{errors.startDate}</p>
               )}
             </div>
 
-            {/* To Date */}
             <div>
-              <label htmlFor="toDate" className="block text-sm font-semibold text-gray-700 mb-1">
-                To Date <span className="text-red-500">*</span>
+              <label htmlFor="endDate" className="block text-sm font-semibold text-gray-700 mb-1">
+                End Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
-                id="toDate"
-                min={formData.fromDate || getTodayString()}
-                value={formData.toDate}
+                id="endDate"
+                min={formData.startDate || getTodayString()}
+                value={formData.endDate}
                 onChange={(e) => {
-                  setFormData((prev) => ({ ...prev, toDate: e.target.value }));
-                  if (errors.toDate) setErrors((prev) => ({ ...prev, toDate: undefined }));
+                  setFormData((prev) => ({ ...prev, endDate: e.target.value }));
+                  if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: undefined }));
                 }}
                 required
                 className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
-                  errors.toDate
+                  errors.endDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20'
                 }`}
               />
-              {errors.toDate && (
-                <p className="text-xs text-red-600 mt-1">{errors.toDate}</p>
+              {errors.endDate && (
+                <p className="text-xs text-red-600 mt-1">{errors.endDate}</p>
               )}
             </div>
           </div>
 
-          {/* Number of Days (Auto calculated duration) */}
           {duration !== null && (
             <div className="text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-              Duration: {duration} {duration === 1 ? 'working day' : 'working days'}
+              Duration: {duration} {duration === 1 ? 'day' : 'days'}
+              {formData.isHalfDay && ' (Half Day)'}
             </div>
           )}
 
-          {/* Reason (Textarea) */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isHalfDay"
+              checked={formData.isHalfDay}
+              onChange={(e) => setFormData((prev) => ({ ...prev, isHalfDay: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <label htmlFor="isHalfDay" className="text-sm text-gray-700">
+              Half Day
+            </label>
+          </div>
+
           <div>
             <label htmlFor="reason" className="block text-sm font-semibold text-gray-700 mb-1">
               Reason for Leave <span className="text-red-500">*</span>
@@ -299,7 +321,6 @@ function ApplyLeaveModal({ isOpen, onClose }: ApplyLeaveModalProps) {
             </div>
           </div>
 
-          {/* Actions Container */}
           <div className="flex gap-3 pt-4 border-t border-gray-100 mt-6">
             <button
               type="button"

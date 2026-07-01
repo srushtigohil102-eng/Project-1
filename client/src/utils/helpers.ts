@@ -129,3 +129,57 @@ export function formatTimeAgo(date: Date): string {
 
   return formatDate(date.toISOString());
 }
+
+interface HasName {
+  firstName: string;
+  lastName: string;
+}
+
+export function getFullName(person: HasName): string {
+  return `${person.firstName} ${person.lastName}`;
+}
+
+interface SalaryBreakdown {
+  basic: number;
+  hra: number;
+  da: number;
+  ta: number;
+  medicalAllowance: number;
+  specialAllowance: number;
+  bonus: number;
+}
+
+interface DeductionBreakdown {
+  tax: number;
+  providentFund: number;
+  professionalTax: number;
+  insurance: number;
+}
+
+export function calculateGrossPay(breakdown: SalaryBreakdown): number {
+  return (
+    breakdown.basic +
+    breakdown.hra +
+    breakdown.da +
+    breakdown.ta +
+    breakdown.medicalAllowance +
+    breakdown.specialAllowance +
+    breakdown.bonus
+  );
+}
+
+export function calculateTotalDeductions(breakdown: DeductionBreakdown): number {
+  return (
+    breakdown.tax +
+    breakdown.providentFund +
+    breakdown.professionalTax +
+    breakdown.insurance
+  );
+}
+
+export function calculateNetPay(
+  salaryBreakdown: SalaryBreakdown,
+  deductionBreakdown: DeductionBreakdown,
+): number {
+  return calculateGrossPay(salaryBreakdown) - calculateTotalDeductions(deductionBreakdown);
+}

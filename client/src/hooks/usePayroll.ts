@@ -15,7 +15,14 @@ export type { PayrollRecord };
 export function usePayroll() {
   return useQuery<PayrollRecord[], Error>({
     queryKey: ['payroll'],
-    queryFn: getPayroll,
+    queryFn: async () => {
+      const data = await getPayroll();
+      if (!Array.isArray(data)) {
+        console.warn('[usePayroll] Expected array, got:', typeof data);
+        return [];
+      }
+      return data;
+    },
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
