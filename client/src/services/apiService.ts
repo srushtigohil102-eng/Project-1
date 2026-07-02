@@ -133,9 +133,22 @@ export interface ApplyLeaveData {
 // ==========================================
 
 export interface PayrollRecord {
+  _id?: string;
   id: string;
-  employee: string | { _id?: string; id?: string; firstName?: string; lastName?: string; fullName?: string; email?: string; employeeId?: string };
-  month: string;
+  employee: {
+    id: string;
+    _id?: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    employeeId: string;
+    department?: {
+      id: string;
+      name: string;
+    };
+  };
+  month: number;
   year: number;
   salaryBreakdown: {
     basic: number;

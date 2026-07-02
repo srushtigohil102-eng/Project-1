@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from 'react';
 import useAuth from '../hooks/useAuth';
 import {
   usePayroll,
@@ -20,6 +20,7 @@ import {
   formatTimeAgo,
   calculateGrossPay,
   calculateNetPay,
+  calculateTotalDeductions,
 } from '../utils/helpers';
 import useEmployees from '../hooks/useEmployees';
 import { BatchNotImplementedError } from '../utils/api';
@@ -41,23 +42,6 @@ function SpinnerIcon({ className = 'h-4 w-4 animate-spin' }: { className?: strin
   );
 }
 
-function getEmployeeId(record: PayrollRecord): string {
-  if (typeof record.employee === 'object' && record.employee !== null) {
-    return (record.employee as { id?: string; _id?: string }).id ??
-           (record.employee as { _id?: string })._id ??
-           '';
-  }
-  return record.employee as string;
-}
-
-function getEmployeeName(record: PayrollRecord): string {
-  if (typeof record.employee === 'object' && record.employee !== null) {
-    return (record.employee as { fullName?: string }).fullName ??
-           (`${(record.employee as { firstName?: string }).firstName ?? ''} ${(record.employee as { lastName?: string }).lastName ?? ''}`.trim() || 'Unknown');
-  }
-  return 'Unknown';
-}
-
 function PayrollPage() {
   const { user, isHRManager } = useAuth();
   const { data: payrollData, isLoading, isError, error, refetch, dataUpdatedAt } = usePayroll();
@@ -76,6 +60,7 @@ function PayrollPage() {
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState('All Departments');
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,15 +114,14 @@ function PayrollPage() {
 
   const filteredRecords = useMemo<PayrollRecord[]>(() => {
     if (!payrollData) return [];
-    const targetMonth = MONTH_NAMES[selectedMonth];
     return payrollData.filter(
-      (r) => r.month === targetMonth && r.year === selectedYear
+      (r) => r.month === selectedMonth + 1 && r.year === selectedYear
     );
   }, [payrollData, selectedMonth, selectedYear]);
 
   const visibleRecords = useMemo(() => {
     if (isHRManager) return filteredRecords;
-    return filteredRecords.filter((r) => getEmployeeId(r) === user?.id);
+    return filteredRecords.filter((r) => r.employee.id === user?.id);
   }, [filteredRecords, isHRManager, user?.id]);
 
   const totalPayroll = useMemo(
@@ -166,11 +150,8 @@ function PayrollPage() {
 
   const departmentEmployeeCount = useMemo(() => {
     if (selectedDepartment === 'All Departments') return filteredRecords.length;
-    const deptMap = new Map(
-      (employeesQuery.data ?? []).map((e) => [e.id, e.department.name]),
-    );
-    return filteredRecords.filter((r) => deptMap.get(getEmployeeId(r)) === selectedDepartment).length;
-  }, [filteredRecords, selectedDepartment, employeesQuery.data]);
+    return filteredRecords.filter((r) => r.employee.department?.name === selectedDepartment).length;
+  }, [filteredRecords, selectedDepartment]);
 
   const handleDownload = useCallback((record: PayrollRecord) => {
     if (abortControllerRef.current) {
@@ -202,10 +183,10 @@ function PayrollPage() {
 
     downloadPayslipMutation.mutate(
       {
-        employeeId: getEmployeeId(record),
-        month: record.month,
+        employeeId: record.employee.id,
+        month: MONTH_NAMES[record.month - 1],
         year: String(record.year),
-        employeeName: getEmployeeName(record),
+        employeeName: record.employee.fullName,
         signal: abortController.signal,
       },
       {
@@ -238,8 +219,8 @@ function PayrollPage() {
     setPreviewingId(record.id);
     previewPayslipMutation.mutate(
       {
-        employeeId: getEmployeeId(record),
-        month: record.month,
+        employeeId: record.employee.id,
+        month: MONTH_NAMES[record.month - 1],
         year: String(record.year),
       },
       {
@@ -515,95 +496,157 @@ function PayrollPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
-                <th className="min-w-[180px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="min-w-[200px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                {isHRManager && <th className="min-w-[120px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>}
                 <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Basic</th>
                 <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Allowances</th>
                 <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Deductions</th>
                 <th className="min-w-[100px] px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Pay</th>
                 <th className="min-w-[100px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="min-w-[160px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Payslip</th>
+                {!isHRManager && <th className="min-w-[160px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Payslip</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {visibleRecords.map((record) => {
                 const grossPay = calculateGrossPay(record.salaryBreakdown);
-                const totalDeductions = record.deductionBreakdown.tax +
-                  record.deductionBreakdown.providentFund +
-                  record.deductionBreakdown.professionalTax +
-                  record.deductionBreakdown.insurance;
+                const totalDeductions = calculateTotalDeductions(record.deductionBreakdown);
                 const netPay = calculateNetPay(record.salaryBreakdown, record.deductionBreakdown);
+                const isExpanded = expandedRowId === record.id;
+
+                const statusStyles: Record<string, string> = {
+                  Processed: 'bg-green-100 text-green-700',
+                  Paid: 'bg-blue-100 text-blue-700',
+                  Pending: 'bg-amber-100 text-amber-700',
+                };
+                const statusDotStyles: Record<string, string> = {
+                  Processed: 'bg-green-500',
+                  Paid: 'bg-blue-500',
+                  Pending: 'bg-amber-500',
+                };
 
                 return (
-                  <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={getEmployeeName(record)} size="sm" />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900" title={getEmployeeName(record)}>{getEmployeeName(record)}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium">
-                      ₹{formatIndianCurrency(record.salaryBreakdown.basic)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium">
-                      ₹{formatIndianCurrency(grossPay - record.salaryBreakdown.basic)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-red-600 font-medium">
-                      ₹{formatIndianCurrency(totalDeductions)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-green-600 font-bold">
-                      ₹{formatIndianCurrency(netPay)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                        Processed
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {downloadingId === record.id ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <button
-                              type="button"
-                              disabled
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white opacity-50 cursor-not-allowed"
-                            >
-                              <SpinnerIcon className="h-3.5 w-3.5 animate-spin text-white" />
-                              Downloading...
-                            </button>
-                            {timeoutMessage && (
-                              <span className="text-xs text-amber-600 max-w-40">{timeoutMessage}</span>
-                            )}
+                  <Fragment key={record.id}>
+                    <tr
+                      onClick={() => setExpandedRowId(isExpanded ? null : record.id)}
+                      className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={record.employee.fullName} size="sm" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900" title={record.employee.fullName}>{record.employee.fullName}</p>
                           </div>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleDownload(record)}
-                              disabled={isBusyId === record.id}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              Download
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePreview(record)}
-                              disabled={isBusyId === record.id}
-                              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                              {previewingId === record.id && <LoadingSpinner size="sm" />}
-                              {previewingId === record.id ? 'Loading...' : 'Preview'}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                        </div>
+                      </td>
+                      {isHRManager && (
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {record.employee.department?.name ?? '—'}
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium">
+                        ₹{formatIndianCurrency(record.salaryBreakdown.basic)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium">
+                        ₹{formatIndianCurrency(grossPay - record.salaryBreakdown.basic)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-red-600 font-medium">
+                        ₹{formatIndianCurrency(totalDeductions)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-green-600 font-bold">
+                        ₹{formatIndianCurrency(netPay)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusStyles[record.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusDotStyles[record.status] ?? 'bg-gray-500'}`} />
+                          {record.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-2">
+                          {downloadingId === record.id ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white opacity-50 cursor-not-allowed"
+                              >
+                                <SpinnerIcon className="h-3.5 w-3.5 animate-spin text-white" />
+                                Downloading...
+                              </button>
+                              {timeoutMessage && (
+                                <span className="text-xs text-amber-600 max-w-40">{timeoutMessage}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleDownload(record)}
+                                disabled={isBusyId === record.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Download
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePreview(record)}
+                                disabled={isBusyId === record.id}
+                                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                {previewingId === record.id && <LoadingSpinner size="sm" />}
+                                {previewingId === record.id ? 'Loading...' : 'Preview'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="bg-gray-50/60">
+                        <td colSpan={isHRManager ? 8 : 7} className="px-4 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Salary Breakdown</p>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span className="text-gray-600">Basic</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.basic)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">HRA</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.hra)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">DA</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.da)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">TA</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.ta)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Medical</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.medicalAllowance)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Special</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.specialAllowance)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Bonus</span><span className="font-medium">₹{formatIndianCurrency(record.salaryBreakdown.bonus)}</span></div>
+                                <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold"><span className="text-gray-800">Gross Pay</span><span className="text-gray-900">₹{formatIndianCurrency(grossPay)}</span></div>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Deductions</p>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span className="text-gray-600">Tax</span><span className="font-medium text-red-600">₹{formatIndianCurrency(record.deductionBreakdown.tax)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">PF</span><span className="font-medium text-red-600">₹{formatIndianCurrency(record.deductionBreakdown.providentFund)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Professional Tax</span><span className="font-medium text-red-600">₹{formatIndianCurrency(record.deductionBreakdown.professionalTax)}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Insurance</span><span className="font-medium text-red-600">₹{formatIndianCurrency(record.deductionBreakdown.insurance)}</span></div>
+                                <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold"><span className="text-gray-800">Total Deductions</span><span className="text-red-600">₹{formatIndianCurrency(totalDeductions)}</span></div>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Attendance</p>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between"><span className="text-gray-600">Working Days</span><span className="font-medium">{record.totalWorkingDays}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Present</span><span className="font-medium text-green-600">{record.presentDays}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Absent</span><span className="font-medium text-red-600">{record.absentDays}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Leave</span><span className="font-medium text-amber-600">{record.leaveDays}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">Holiday</span><span className="font-medium text-blue-600">{record.holidayDays}</span></div>
+                                <div className="flex justify-between border-t border-gray-200 pt-1 font-bold text-green-700"><span>Net Pay</span><span>₹{formatIndianCurrency(netPay)}</span></div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
