@@ -6,7 +6,7 @@ import {
   useRejectLeave,
 } from '../hooks/useLeave';
 import { formatDate, formatTimeAgo } from '../utils/helpers';
-import StatusBadge from '../components/StatusBadge';
+import StatusBadge, { type StatusBadgeStatus } from '../components/StatusBadge';
 import Avatar from '../components/Avatar';
 import ApplyLeaveModal from '../components/ApplyLeaveModal';
 import RejectLeaveModal from '../components/RejectLeaveModal';
@@ -551,7 +551,7 @@ function LeavePage() {
                         {leave.reason}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={leave.status} />
+                        <StatusBadge status={leave.status.toLowerCase() as StatusBadgeStatus} />
                       </td>
                       <td className="px-6 py-4 text-sm whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {isPending ? (
@@ -617,7 +617,7 @@ function LeavePage() {
                         {leave.reason}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={leave.status} />
+                        <StatusBadge status={leave.status.toLowerCase() as StatusBadgeStatus} />
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                         {formatDate(leave.createdAt)}
@@ -746,7 +746,7 @@ function LeavePage() {
                 {/* Status */}
                 <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4 border border-gray-100">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</p>
-                  <StatusBadge status={selectedLeave.status} />
+                  <StatusBadge status={selectedLeave.status.toLowerCase() as StatusBadgeStatus} />
                 </div>
 
                 {/* Applied On */}

@@ -22,9 +22,9 @@ const ROLE_BADGE: Record<EmployeeRole, { bg: string; text: string; label: string
   Employee: { bg: 'bg-green-600/20', text: 'text-green-300', label: 'Emp' },
 };
 
-function getLeaveEmployeeId(leave: { employee: string | { _id: string } }): string {
+function getLeaveEmployeeId(leave: { employee: string | { id: string } }): string {
   if (typeof leave.employee === 'object' && leave.employee !== null) {
-    return leave.employee._id;
+    return leave.employee.id;
   }
   return leave.employee as string;
 }

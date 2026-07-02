@@ -66,7 +66,7 @@ function validateForm(data: FormData): Errors {
 }
 
 function toUserType(data: LoginSuccessResponse): UserType | null {
-  const { token, employee } = data.data;
+  const { employee } = data.data;
 
   return {
     id: employee._id,
@@ -135,7 +135,7 @@ function LoginPage() {
         const responseData = (await response.json()) as LoginSuccessResponse;
         const user = toUserType(responseData);
 
-        login(responseData.data.token, user, rememberMe);
+        login(responseData.data.token, user!, rememberMe);
         navigate('/dashboard');
         return;
       }

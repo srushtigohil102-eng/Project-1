@@ -7,10 +7,10 @@
     "emitDecoratorMetadata": true,
     
     /* Modules */
-    "module": "commonjs",
+    "module": "es2022",
     "rootDir": "./src",
     "moduleResolution": "bundler",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "resolveJsonModule": true,
     
     /* Emit */

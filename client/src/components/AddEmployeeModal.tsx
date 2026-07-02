@@ -163,7 +163,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
   const step1Ref = useRef<HTMLInputElement>(null);
   const step2Ref = useRef<HTMLSelectElement>(null);
-  const step3Ref = useRef<HTMLSelectElement>(null);
+  const step3Ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {

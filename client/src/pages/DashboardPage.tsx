@@ -4,7 +4,7 @@ import useAuth from '../hooks/useAuth';
 import useEmployees from '../hooks/useEmployees';
 import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
-import { formatTimeAgo, calculateLeaveDays, formatIndianCurrency } from '../utils/helpers';
+import { formatTimeAgo, calculateLeaveDays, formatIndianCurrency, calculateNetPay } from '../utils/helpers';
 import { showSuccess } from '../utils/toast';
 
 function safeTimestamp(dateStr: string | undefined | null): number {
@@ -238,19 +238,19 @@ function DashboardPage() {
 
   const pendingLeaves = useMemo(() => {
     if (!leaves) return 0;
-    return leaves.filter((l) => l.status === 'pending').length;
+    return leaves.filter((l) => l.status === 'Pending').length;
   }, [leaves]);
 
   const departmentCount = useMemo(() => {
     if (!employees) return 0;
-    return new Set(employees.map((e) => e.department)).size;
+    return new Set(employees.map((e) => e.department.name)).size;
   }, [employees]);
 
   const payrollThisMonth = useMemo(() => {
     if (!payroll) return 0;
     return payroll
       .filter((r) => r.month === MONTH_NAMES[currentMonth] && r.year === currentYear)
-      .reduce((sum, r) => sum + r.netPay, 0);
+      .reduce((sum, r) => sum + calculateNetPay(r.salaryBreakdown, r.deductionBreakdown), 0);
   }, [payroll, currentMonth, currentYear]);
 
   const hrActivities = useMemo<ActivityItem[]>(() => {
@@ -261,27 +261,27 @@ function DashboardPage() {
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((e) => {
-          items.push({ type: 'employee', name: e.name, action: `joined as ${e.role}`, timestamp: safeDate(e.createdAt) });
+          items.push({ type: 'employee', name: e.fullName, action: `joined as ${e.role}`, timestamp: safeDate(e.createdAt) });
         });
     }
 
     if (leaves) {
       [...leaves]
-        .filter((l) => l.status === 'pending')
+        .filter((l) => l.status === 'Pending')
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
-          items.push({ type: 'leave_request', name: l.employeeName, action: `submitted a ${l.leaveType} request`, timestamp: safeDate(l.createdAt) });
+          items.push({ type: 'leave_request', name: l.employee.fullName, action: `submitted a ${l.leaveType} request`, timestamp: safeDate(l.createdAt) });
         });
     }
 
     if (leaves) {
       [...leaves]
-        .filter((l) => l.status === 'approved')
+        .filter((l) => l.status === 'Approved')
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
-          items.push({ type: 'leave_approved', name: l.employeeName, action: `'s leave was approved`, timestamp: safeDate(l.createdAt) });
+          items.push({ type: 'leave_approved', name: l.employee.fullName, action: `'s leave was approved`, timestamp: safeDate(l.createdAt) });
         });
     }
 
@@ -299,9 +299,9 @@ function DashboardPage() {
   const leaveOverview = useMemo(() => {
     if (!leaves) return { approved: 0, pending: 0, rejected: 0 };
     return {
-      approved: leaves.filter((l) => l.status === 'approved' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
-      pending: leaves.filter((l) => l.status === 'pending').length,
-      rejected: leaves.filter((l) => l.status === 'rejected' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
+      approved: leaves.filter((l) => l.status === 'Approved' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
+      pending: leaves.filter((l) => l.status === 'Pending').length,
+      rejected: leaves.filter((l) => l.status === 'Rejected' && safeDate(l.createdAt).getMonth() === currentMonth && safeDate(l.createdAt).getFullYear() === currentYear).length,
     };
   }, [leaves, currentMonth, currentYear]);
 
@@ -310,7 +310,7 @@ function DashboardPage() {
   const departmentBreakdown = useMemo(() => {
     if (!employees) return [];
     const counts: Record<string, number> = {};
-    employees.forEach((e) => { counts[e.department] = (counts[e.department] || 0) + 1; });
+    employees.forEach((e) => { counts[e.department.name] = (counts[e.department.name] || 0) + 1; });
     const entries = Object.entries(counts).map(([department, count]) => ({ department, count }));
     entries.sort((a, b) => b.count - a.count);
     const maxCount = entries.length > 0 ? entries[0].count : 1;
@@ -330,20 +330,20 @@ function DashboardPage() {
 
   const myPendingLeaves = useMemo(() => {
     if (!leaves || !user) return 0;
-    return leaves.filter((l) => l.employeeId === user.id && l.status === 'pending').length;
+    return leaves.filter((l) => l.employee.id === user.id && l.status === 'Pending').length;
   }, [leaves, user]);
 
   const myApprovedLeaveDays = useMemo(() => {
     if (!leaves || !user) return 0;
     const thisYearLeaves = leaves.filter(
-      (l) => l.employeeId === user.id && l.status === 'approved'
+      (l) => l.employee.id === user.id && l.status === 'Approved'
     );
     let total = 0;
     for (const l of thisYearLeaves) {
-      const from = safeDate(l.fromDate);
-      const to = safeDate(l.toDate);
+      const from = safeDate(l.startDate);
+      const to = safeDate(l.endDate);
       if (from.getFullYear() === currentYear || to.getFullYear() === currentYear) {
-        total += calculateLeaveDays(l.fromDate, l.toDate);
+        total += calculateLeaveDays(l.startDate, l.endDate);
       }
     }
     return total;
@@ -354,7 +354,7 @@ function DashboardPage() {
   const myPayrollThisMonth = useMemo(() => {
     if (!payroll || !user) return null;
     return payroll.find(
-      (p) => p.employeeId === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
+      (p) => typeof p.employee === 'object' && p.employee !== null && 'id' in p.employee && p.employee.id === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
     ) ?? null;
   }, [payroll, user, currentMonth, currentYear]);
 
@@ -375,10 +375,10 @@ function DashboardPage() {
     const items: Array<{ type: ActivityType; name: string; action: string; timestamp: Date }> = [];
 
     if (leaves && user) {
-      const myLeaves = leaves.filter((l) => l.employeeId === user.id);
+      const myLeaves = leaves.filter((l) => l.employee.id === user.id);
 
       myLeaves
-        .filter((l) => l.status === 'approved')
+        .filter((l) => l.status === 'Approved')
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
@@ -386,7 +386,7 @@ function DashboardPage() {
         });
 
       myLeaves
-        .filter((l) => l.status === 'pending')
+        .filter((l) => l.status === 'Pending')
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
@@ -394,7 +394,7 @@ function DashboardPage() {
         });
 
       myLeaves
-        .filter((l) => l.status === 'rejected')
+        .filter((l) => l.status === 'Rejected')
         .sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt))
         .slice(0, 3)
         .forEach((l) => {
@@ -404,7 +404,7 @@ function DashboardPage() {
 
     if (payroll && user) {
       const myPayroll = payroll.filter(
-        (p) => p.employeeId === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
+        (p) => typeof p.employee === 'object' && p.employee !== null && 'id' in p.employee && p.employee.id === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
       );
       myPayroll.forEach((p) => {
         items.push({ type: 'payroll', name: 'Your', action: `payslip is ready for ${p.month} ${p.year}`, timestamp: new Date() });
@@ -654,7 +654,7 @@ function DashboardPage() {
             />
             <StatCard
               label="My Salary (This Month)"
-              value={myPayrollThisMonth ? `₹${formatIndianCurrency(myPayrollThisMonth.netPay)}` : 'Pending'}
+              value={myPayrollThisMonth ? `₹${formatIndianCurrency(calculateNetPay(myPayrollThisMonth.salaryBreakdown, myPayrollThisMonth.deductionBreakdown))}` : 'Pending'}
               subtitle={myPayrollThisMonth ? `${MONTH_NAMES[currentMonth]} ${currentYear}` : 'Not yet processed'}
               icon="💰"
               accentColor={`border-l-4 ${myPayrollThisMonth ? 'border-l-green-500' : 'border-l-gray-400'}`}
