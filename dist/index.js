@@ -1,8 +1,11 @@
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/db";
 import dotenv from "dotenv";
+import { errorHandler } from "./middleware/error.middleware";
 import authRoutes from "./routes/auth.routes";
 import employeeRoutes from "./routes/employee.routes";
 import departmentRoutes from "./routes/department.routes";
@@ -31,9 +34,21 @@ app.use(cors({
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
 }));
+app.use(helmet());
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { success: false, message: "Too many requests, please try again later" },
+});
+app.use("/api/", limiter);
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { success: false, message: "Too many login attempts, please try again later" },
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 import { verifyTokenMiddleware } from "./middleware/auth.middleware";
 app.get("/api/test-auth", verifyTokenMiddleware, (_req, res) => {
     res.json({ success: true, message: "Token is valid!", user: _req.user });
@@ -65,6 +80,7 @@ app.get("/health", (_req, res) => {
         mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
     });
 });
+app.use(errorHandler);
 const startServer = async () => {
     try {
         await connectDB();
