@@ -502,8 +502,9 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs"
         onClick={handleClose}
       />
-      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[520px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+      <div ref={focusTrapRef} role="dialog" className="relative flex w-full max-w-lg mx-4 flex-col rounded-2xl bg-white shadow-2xl border border-gray-150 transition-all max-h-[90vh]">
+        {/* STICKY HEADER */}
+        <div className="flex items-center justify-between shrink-0 px-6 pt-6 pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">Add New Employee</h3>
           <button
             type="button"
@@ -514,28 +515,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
             <XIcon className="h-5 w-5" />
           </button>
         </div>
-
-        {showRestorePrompt && (
-          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 flex items-center justify-between gap-3">
-            <span>You have unsaved form data from before. Would you like to continue where you left off?</span>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleRestoreYes}
-                className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={handleRestoreNo}
-                className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
-              >
-                No
-              </button>
-            </div>
-          </div>
-        )}
 
         {showCloseConfirm && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -570,8 +549,34 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
           </div>
         )}
 
-        {renderStepIndicator()}
+        {/* STICKY STEP INDICATOR */}
+        <div className="shrink-0 px-6 pt-4">
+          {renderStepIndicator()}
+        </div>
 
+        {/* SCROLLABLE FORM BODY */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
+        {showRestorePrompt && (
+          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 flex items-center justify-between gap-3">
+            <span>You have unsaved form data from before. Would you like to continue where you left off?</span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRestoreYes}
+                className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreNo}
+                className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
         {apiError && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100 flex items-start gap-2">
             <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -730,26 +735,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               </select>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!isStep1Valid}
-                onClick={handleNextStep1}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Next
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
           </div>
         )}
 
@@ -816,29 +801,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               {errors.joiningDate && <p className="text-xs text-red-600 mt-1">{errors.joiningDate}</p>}
             </div>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 mt-6">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={!isStep2Valid}
-                onClick={handleNextStep2}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Next
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
           </div>
         )}
 
@@ -997,7 +959,61 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               </div>
             </div>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 mt-6">
+          </div>
+        )}
+        </div>
+
+        {/* STICKY FOOTER */}
+        <div className="shrink-0 px-6 pb-6 pt-4 border-t border-gray-100">
+          {step === 1 && (
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!isStep1Valid}
+                onClick={handleNextStep1}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={!isStep2Valid}
+                onClick={handleNextStep2}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="flex justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setStep(2)}
@@ -1027,8 +1043,8 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 {createEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

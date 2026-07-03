@@ -74,7 +74,7 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs"
         onClick={handleClose}
       />
-      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[400px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
+      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">
             Reject Leave Request
