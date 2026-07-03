@@ -373,7 +373,7 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
       sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
-      showSuccess('Employee added successfully!');
+      showSuccess(`${formData.firstName} ${formData.lastName} added successfully!`);
       onSuccess();
     } catch (err) {
       const error = err as Error & { body?: { message?: string; errors?: Array<{ field: string; message: string }> } };

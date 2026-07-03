@@ -206,21 +206,22 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
 interface EmptyStateProps {
   isHRManager: boolean;
   onAddEmployee: () => void;
+  hasActiveFilters?: boolean;
 }
 
-function EmptyState({ isHRManager, onAddEmployee }: EmptyStateProps) {
+function EmptyState({ isHRManager, onAddEmployee, hasActiveFilters }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 text-4xl">
         👥
       </div>
       <h2 className="mt-6 text-lg font-semibold text-gray-900">
-        No employees found
+        {hasActiveFilters ? 'No results match your search' : 'No employees found'}
       </h2>
       <p className="mt-2 text-sm text-gray-500">
-        Try adjusting your search or filters
+        {hasActiveFilters ? 'Try clearing your search or filters.' : 'Try adjusting your search or filters'}
       </p>
-      {isHRManager && (
+      {!hasActiveFilters && isHRManager && (
         <button
           type="button"
           onClick={onAddEmployee}
@@ -763,7 +764,7 @@ function EmployeesPage() {
                 ))}
               </div>
             ) : filteredEmployees.length === 0 ? (
-              <EmptyState isHRManager={isHRManager} onAddEmployee={handleAddEmployee} />
+              <EmptyState isHRManager={isHRManager} onAddEmployee={handleAddEmployee} hasActiveFilters={hasActiveFilters} />
             ) : (
               <div className="divide-y divide-gray-100">
                 {paginatedEmployees.map((employee) => (
@@ -905,6 +906,7 @@ function EmployeesPage() {
                         <EmptyState
                           isHRManager={isHRManager}
                           onAddEmployee={handleAddEmployee}
+                          hasActiveFilters={hasActiveFilters}
                         />
                       </td>
                     </tr>

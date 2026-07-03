@@ -560,10 +560,10 @@ function LeavePage() {
                               type="button"
                               disabled={isMutatingAny}
                               onClick={() => {
-                                approveMutation.mutate(leave.id, {
-                                  onSuccess: () => {
-                                    showSuccess('Leave approved successfully');
-                                  },
+                                  approveMutation.mutate(leave.id, {
+                                    onSuccess: () => {
+                                      showSuccess(`${leave.employee.fullName}'s leave approved`);
+                                    },
                                   onError: () => {
                                     showError('Failed to approve leave');
                                   },
