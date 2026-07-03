@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
 import PDFDocument from "pdfkit";
 
+/**
+ * Security Improvements
+ * - Input validation
+ * - Standardized API responses
+ * - Error handling
+ */
+
 interface Payroll {
   employeeId: string;
   employeeName: string;
@@ -31,12 +38,23 @@ export const getPayrollByEmployeeId = (
   res: Response
 ): void => {
   try {
+    const employeeId = String(req.params.employeeId ?? "");
+
+    if (employeeId.trim() === "") {
+      res.status(400).json({
+        success: false,
+        message: "Employee ID is required",
+      });
+      return;
+    }
+
     const payroll = payrollData.find(
-      (item) => item.employeeId === req.params.employeeId
+      (item) => item.employeeId === employeeId
     );
 
     if (!payroll) {
       res.status(404).json({
+        success: false,
         message: "Payroll record not found",
       });
       return;
@@ -48,15 +66,19 @@ export const getPayrollByEmployeeId = (
       payroll.deductions;
 
     res.status(200).json({
-      employeeId: payroll.employeeId,
-      employeeName: payroll.employeeName,
-      basicSalary: payroll.basicSalary,
-      allowances: payroll.allowances,
-      deductions: payroll.deductions,
-      netSalary,
+      success: true,
+      data: {
+        employeeId: payroll.employeeId,
+        employeeName: payroll.employeeName,
+        basicSalary: payroll.basicSalary,
+        allowances: payroll.allowances,
+        deductions: payroll.deductions,
+        netSalary,
+      },
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -69,6 +91,7 @@ export const runPayroll = (
   try {
     if (payrollData.length === 0) {
       res.status(400).json({
+        success: false,
         message: "No payroll records available",
       });
       return;
@@ -87,12 +110,14 @@ export const runPayroll = (
     }));
 
     res.status(200).json({
+      success: true,
       message: "Payroll processed successfully",
       totalEmployees: payrollSummary.length,
-      payrollSummary,
+      data: payrollSummary,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -103,12 +128,23 @@ export const downloadPayrollPdf = (
   res: Response
 ): void => {
   try {
+    const employeeId = String(req.params.employeeId ?? "");
+
+    if (employeeId.trim() === "") {
+      res.status(400).json({
+        success: false,
+        message: "Employee ID is required",
+      });
+      return;
+    }
+
     const payroll = payrollData.find(
-      (item) => item.employeeId === req.params.employeeId
+      (item) => item.employeeId === employeeId
     );
 
     if (!payroll) {
       res.status(404).json({
+        success: false,
         message: "Payroll record not found",
       });
       return;
@@ -124,7 +160,7 @@ export const downloadPayrollPdf = (
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=${payroll.employeeId}-payroll.pdf`
+      `attachment; filename=${employeeId}-payroll.pdf`
     );
 
     doc.pipe(res);
@@ -145,6 +181,7 @@ export const downloadPayrollPdf = (
     doc.end();
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }

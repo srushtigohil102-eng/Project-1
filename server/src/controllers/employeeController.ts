@@ -1,5 +1,12 @@
 import type { Request, Response } from "express";
 
+/**
+ * Security Improvements
+ * - Input validation
+ * - Error handling
+ * - Secure API responses
+ */
+
 export interface Employee {
   id: string;
   name: string;
@@ -69,9 +76,13 @@ const MOCK_EMPLOYEES: Employee[] = [
 
 export const getEmployees = (_req: Request, res: Response): void => {
   try {
-    res.status(200).json(MOCK_EMPLOYEES);
+    res.status(200).json({
+      success: true,
+      data: MOCK_EMPLOYEES,
+    });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -79,28 +90,57 @@ export const getEmployees = (_req: Request, res: Response): void => {
 
 export const createEmployee = (req: Request, res: Response): void => {
   try {
-    const { name, email, department, role, salary } = req.body;
+    let { name, email, department, role, salary } = req.body;
 
     if (!name || !email || !department || !role || salary === undefined) {
       res.status(400).json({
+        success: false,
         message: "All employee fields are required",
+      });
+      return;
+    }
+
+    name = name.trim();
+    email = email.trim();
+    department = department.trim();
+    role = role.trim();
+
+    if (!email.includes("@")) {
+      res.status(400).json({
+        success: false,
+        message: "Valid email is required",
+      });
+      return;
+    }
+
+    if (typeof salary !== "number" || salary <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Salary must be greater than zero",
       });
       return;
     }
 
     const newEmployee: Employee = {
       id: `emp-${Date.now()}`,
-      ...req.body,
+      name,
+      email,
+      department,
+      role,
+      salary,
+      status: "active",
     };
 
     MOCK_EMPLOYEES.push(newEmployee);
 
     res.status(201).json({
+      success: true,
       message: "Employee created successfully",
-      employee: newEmployee,
+      data: newEmployee,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -114,6 +154,7 @@ export const updateEmployee = (req: Request, res: Response): void => {
 
     if (!employee) {
       res.status(404).json({
+        success: false,
         message: "Employee not found",
       });
       return;
@@ -121,6 +162,7 @@ export const updateEmployee = (req: Request, res: Response): void => {
 
     if (Object.keys(req.body).length === 0) {
       res.status(400).json({
+        success: false,
         message: "No update data provided",
       });
       return;
@@ -129,11 +171,13 @@ export const updateEmployee = (req: Request, res: Response): void => {
     Object.assign(employee, req.body);
 
     res.status(200).json({
+      success: true,
       message: "Employee updated successfully",
-      employee,
+      data: employee,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -149,6 +193,7 @@ export const deleteEmployee = (req: Request, res: Response): void => {
 
     if (employeeIndex === -1) {
       res.status(404).json({
+        success: false,
         message: "Employee not found",
       });
       return;
@@ -157,10 +202,12 @@ export const deleteEmployee = (req: Request, res: Response): void => {
     MOCK_EMPLOYEES.splice(employeeIndex, 1);
 
     res.status(200).json({
+      success: true,
       message: "Employee deleted successfully",
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }

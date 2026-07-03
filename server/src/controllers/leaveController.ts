@@ -1,6 +1,14 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware";
 
+/**
+ * Security Improvements
+ * - Input validation
+ * - Date validation
+ * - Standardized API responses
+ * - Error handling
+ */
+
 interface LeaveRequest {
   id: string;
   employeeId: string;
@@ -52,9 +60,13 @@ const leaveRequests: LeaveRequest[] = [
 
 export const getLeaves = (_req: Request, res: Response): void => {
   try {
-    res.status(200).json(leaveRequests);
+    res.status(200).json({
+      success: true,
+      data: leaveRequests,
+    });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -67,7 +79,19 @@ export const applyLeave = (req: Request, res: Response): void => {
 
     if (!leaveType || !fromDate || !toDate || !reason) {
       res.status(400).json({
+        success: false,
         message: "All leave fields are required",
+      });
+      return;
+    }
+
+    const startDate = new Date(fromDate);
+    const endDate = new Date(toDate);
+
+    if (endDate < startDate) {
+      res.status(400).json({
+        success: false,
+        message: "To date cannot be before From date",
       });
       return;
     }
@@ -87,11 +111,13 @@ export const applyLeave = (req: Request, res: Response): void => {
     leaveRequests.push(leaveRequest);
 
     res.status(201).json({
+      success: true,
       message: "Leave request submitted successfully",
-      leaveRequest,
+      data: leaveRequest,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -105,6 +131,7 @@ export const approveLeave = (req: Request, res: Response): void => {
 
     if (!leave) {
       res.status(404).json({
+        success: false,
         message: "Leave request not found",
       });
       return;
@@ -113,11 +140,13 @@ export const approveLeave = (req: Request, res: Response): void => {
     leave.status = "approved";
 
     res.status(200).json({
+      success: true,
       message: "Leave approved successfully",
-      leave,
+      data: leave,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
@@ -131,6 +160,7 @@ export const rejectLeave = (req: Request, res: Response): void => {
 
     if (!leave) {
       res.status(404).json({
+        success: false,
         message: "Leave request not found",
       });
       return;
@@ -140,6 +170,7 @@ export const rejectLeave = (req: Request, res: Response): void => {
 
     if (!reason) {
       res.status(400).json({
+        success: false,
         message: "Rejection reason is required",
       });
       return;
@@ -149,11 +180,13 @@ export const rejectLeave = (req: Request, res: Response): void => {
     leave.rejectReason = reason;
 
     res.status(200).json({
+      success: true,
       message: "Leave rejected successfully",
-      leave,
+      data: leave,
     });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }
