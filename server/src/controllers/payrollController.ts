@@ -2,10 +2,8 @@ import type { Request, Response } from "express";
 import PDFDocument from "pdfkit";
 
 /**
- * Security Improvements
- * - Input validation
- * - Standardized API responses
- * - Error handling
+ * Payroll Controller
+ * Handles Payroll APIs
  */
 
 interface Payroll {
@@ -33,6 +31,10 @@ const payrollData: Payroll[] = [
   },
 ];
 
+/**
+ * GET /payroll/:employeeId
+ * Returns payroll details for an employee.
+ */
 export const getPayrollByEmployeeId = (
   req: Request,
   res: Response
@@ -76,7 +78,9 @@ export const getPayrollByEmployeeId = (
         netSalary,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("Get Payroll Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -84,6 +88,10 @@ export const getPayrollByEmployeeId = (
   }
 };
 
+/**
+ * POST /payroll/run
+ * Processes payroll for all employees.
+ */
 export const runPayroll = (
   _req: Request,
   res: Response
@@ -115,7 +123,9 @@ export const runPayroll = (
       totalEmployees: payrollSummary.length,
       data: payrollSummary,
     });
-  } catch {
+  } catch (error) {
+    console.error("Run Payroll Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -123,6 +133,10 @@ export const runPayroll = (
   }
 };
 
+/**
+ * GET /payroll/:employeeId/download
+ * Downloads the payroll PDF.
+ */
 export const downloadPayrollPdf = (
   req: Request,
   res: Response
@@ -179,7 +193,9 @@ export const downloadPayrollPdf = (
     doc.text(`Net Salary: ₹${netSalary}`);
 
     doc.end();
-  } catch {
+  } catch (error) {
+    console.error("Download Payroll PDF Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",

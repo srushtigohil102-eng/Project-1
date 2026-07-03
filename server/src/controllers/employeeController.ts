@@ -1,10 +1,8 @@
 import type { Request, Response } from "express";
 
 /**
- * Security Improvements
- * - Input validation
- * - Error handling
- * - Secure API responses
+ * Employee Controller
+ * Handles Employee CRUD Operations
  */
 
 export interface Employee {
@@ -74,13 +72,19 @@ const MOCK_EMPLOYEES: Employee[] = [
   },
 ];
 
+/**
+ * GET /employees
+ * Returns all employees.
+ */
 export const getEmployees = (_req: Request, res: Response): void => {
   try {
     res.status(200).json({
       success: true,
       data: MOCK_EMPLOYEES,
     });
-  } catch {
+  } catch (error) {
+    console.error("Get Employees Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -88,6 +92,10 @@ export const getEmployees = (_req: Request, res: Response): void => {
   }
 };
 
+/**
+ * POST /employees
+ * Creates a new employee.
+ */
 export const createEmployee = (req: Request, res: Response): void => {
   try {
     let { name, email, department, role, salary } = req.body;
@@ -138,7 +146,9 @@ export const createEmployee = (req: Request, res: Response): void => {
       message: "Employee created successfully",
       data: newEmployee,
     });
-  } catch {
+  } catch (error) {
+    console.error("Create Employee Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -146,6 +156,10 @@ export const createEmployee = (req: Request, res: Response): void => {
   }
 };
 
+/**
+ * PUT /employees/:id
+ * Updates an existing employee.
+ */
 export const updateEmployee = (req: Request, res: Response): void => {
   try {
     const { id } = req.params;
@@ -175,7 +189,9 @@ export const updateEmployee = (req: Request, res: Response): void => {
       message: "Employee updated successfully",
       data: employee,
     });
-  } catch {
+  } catch (error) {
+    console.error("Update Employee Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -183,6 +199,10 @@ export const updateEmployee = (req: Request, res: Response): void => {
   }
 };
 
+/**
+ * DELETE /employees/:id
+ * Deletes an employee.
+ */
 export const deleteEmployee = (req: Request, res: Response): void => {
   try {
     const { id } = req.params;
@@ -205,7 +225,9 @@ export const deleteEmployee = (req: Request, res: Response): void => {
       success: true,
       message: "Employee deleted successfully",
     });
-  } catch {
+  } catch (error) {
+    console.error("Delete Employee Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",

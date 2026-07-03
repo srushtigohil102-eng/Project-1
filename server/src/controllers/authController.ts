@@ -10,6 +10,10 @@ interface LoginBody {
   password?: string;
 }
 
+/**
+ * POST /auth/login
+ * Authenticates a user and returns a JWT token.
+ */
 export const login = async (
   req: Request,
   res: Response
@@ -21,6 +25,14 @@ export const login = async (
       res.status(400).json({
         success: false,
         message: "Email and password are required",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
       });
       return;
     }
@@ -75,16 +87,18 @@ export const login = async (
       success: true,
       message: "Login successful",
       data: {
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
       },
-    },
-  });
-  } catch {
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Server error. Please try again later.",

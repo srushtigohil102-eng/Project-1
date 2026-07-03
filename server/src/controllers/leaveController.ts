@@ -2,11 +2,8 @@ import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware";
 
 /**
- * Security Improvements
- * - Input validation
- * - Date validation
- * - Standardized API responses
- * - Error handling
+ * Leave Controller
+ * Handles Leave Management APIs
  */
 
 interface LeaveRequest {
@@ -58,13 +55,19 @@ const leaveRequests: LeaveRequest[] = [
   },
 ];
 
+/**
+ * GET /leave
+ * Returns all leave requests.
+ */
 export const getLeaves = (_req: Request, res: Response): void => {
   try {
     res.status(200).json({
       success: true,
       data: leaveRequests,
     });
-  } catch {
+  } catch (error) {
+    console.error("Get Leaves Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -72,6 +75,10 @@ export const getLeaves = (_req: Request, res: Response): void => {
   }
 };
 
+/**
+ * POST /leave/apply
+ * Employee applies for leave.
+ */
 export const applyLeave = (req: Request, res: Response): void => {
   try {
     const user = (req as AuthenticatedRequest).user;
@@ -115,7 +122,9 @@ export const applyLeave = (req: Request, res: Response): void => {
       message: "Leave request submitted successfully",
       data: leaveRequest,
     });
-  } catch {
+  } catch (error) {
+    console.error("Apply Leave Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -123,6 +132,10 @@ export const applyLeave = (req: Request, res: Response): void => {
   }
 };
 
+/**
+ * PUT /leave/:id/approve
+ * Approves a leave request.
+ */
 export const approveLeave = (req: Request, res: Response): void => {
   try {
     const leave = leaveRequests.find(
@@ -144,7 +157,9 @@ export const approveLeave = (req: Request, res: Response): void => {
       message: "Leave approved successfully",
       data: leave,
     });
-  } catch {
+  } catch (error) {
+    console.error("Approve Leave Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -152,6 +167,10 @@ export const approveLeave = (req: Request, res: Response): void => {
   }
 };
 
+/**
+ * PUT /leave/:id/reject
+ * Rejects a leave request.
+ */
 export const rejectLeave = (req: Request, res: Response): void => {
   try {
     const leave = leaveRequests.find(
@@ -184,7 +203,9 @@ export const rejectLeave = (req: Request, res: Response): void => {
       message: "Leave rejected successfully",
       data: leave,
     });
-  } catch {
+  } catch (error) {
+    console.error("Reject Leave Error:", error);
+
     res.status(500).json({
       success: false,
       message: "Internal server error",
