@@ -206,10 +206,12 @@ export async function downloadFile(
   }
 
   if (!contentType.includes('application/pdf') && !contentType.includes('application/octet-stream')) {
-    console.warn(
-      `[API] Unexpected Content-Type "${contentType}" for download at ${path}. ` +
-      'Expected application/pdf. The downloaded file may be corrupt.',
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[API] Unexpected Content-Type "${contentType}" for download at ${path}. ` +
+        'Expected application/pdf. The downloaded file may be corrupt.',
+      );
+    }
   }
 
   const blob = await response.blob();

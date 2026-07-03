@@ -18,7 +18,9 @@ export function usePayroll() {
     queryFn: async () => {
       const data = await getPayroll();
       if (!Array.isArray(data)) {
-        console.warn('[usePayroll] Expected array, got:', typeof data);
+        if (import.meta.env.DEV) {
+          console.warn('[usePayroll] Expected array, got:', typeof data);
+        }
         return [];
       }
       return data;

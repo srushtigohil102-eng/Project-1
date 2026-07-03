@@ -251,15 +251,21 @@ export async function rejectLeave(
 
 function validatePayrollRecord(record: unknown, index: number): void {
   if (!record || typeof record !== 'object') {
-    console.warn(`[Payroll] Record at index ${index} is not an object:`, record);
+    if (import.meta.env.DEV) {
+      console.warn(`[Payroll] Record at index ${index} is not an object:`, record);
+    }
     return;
   }
   const r = record as Record<string, unknown>;
   if (!r.salaryBreakdown || typeof r.salaryBreakdown !== 'object') {
-    console.warn(`[Payroll] Record at index ${index} missing salaryBreakdown:`, r);
+    if (import.meta.env.DEV) {
+      console.warn(`[Payroll] Record at index ${index} missing salaryBreakdown:`, r);
+    }
   }
   if (!r.deductionBreakdown || typeof r.deductionBreakdown !== 'object') {
-    console.warn(`[Payroll] Record at index ${index} missing deductionBreakdown:`, r);
+    if (import.meta.env.DEV) {
+      console.warn(`[Payroll] Record at index ${index} missing deductionBreakdown:`, r);
+    }
   }
 }
 
@@ -267,7 +273,7 @@ export async function getPayroll(): Promise<PayrollRecord[]> {
   const res = await apiFetch<ApiResponse<PayrollRecord[]>>('/api/payroll');
   if (Array.isArray(res.data)) {
     res.data.forEach(validatePayrollRecord);
-  } else {
+  } else if (import.meta.env.DEV) {
     console.warn('[Payroll] Expected res.data to be an array, got:', typeof res.data);
   }
   return res.data;
@@ -277,7 +283,7 @@ export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]>
   const res = await apiFetch<ApiResponse<PayrollRecord[]>>(`/api/payroll/${id}`);
   if (Array.isArray(res.data)) {
     res.data.forEach(validatePayrollRecord);
-  } else {
+  } else if (import.meta.env.DEV) {
     console.warn('[Payroll] getPayrollByEmployee: Expected res.data to be an array, got:', typeof res.data);
   }
   return res.data;
@@ -289,7 +295,7 @@ export async function runPayroll(): Promise<PayrollRecord[]> {
   });
   if (Array.isArray(res.data)) {
     res.data.forEach(validatePayrollRecord);
-  } else {
+  } else if (import.meta.env.DEV) {
     console.warn('[Payroll] runPayroll: Expected res.data to be an array, got:', typeof res.data);
   }
   return res.data;
