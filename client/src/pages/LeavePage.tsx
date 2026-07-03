@@ -429,8 +429,8 @@ function LeavePage() {
       </div>
 
       {/* Main Table Content */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-xs">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-200 bg-white shadow-xs">
+        <table className="min-w-[600px] w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {isHRManager ? (
               <tr>

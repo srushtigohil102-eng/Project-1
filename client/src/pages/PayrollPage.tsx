@@ -492,8 +492,8 @@ function PayrollPage() {
       ) : visibleRecords.length === 0 ? (
         renderEmptyState()
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 rounded-xl border border-gray-200 bg-white shadow-xs">
+          <table className="min-w-[600px] w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
                 <th className="min-w-[200px] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>

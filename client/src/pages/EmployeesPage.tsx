@@ -733,112 +733,207 @@ function EmployeesPage() {
         />
       ) : (
         <div className="overflow-hidden rounded-xl bg-white shadow-md">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
-                <tr>
-                  {isHRManager && (
-                    <th className="px-3 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleSelected && selectedEmployees.size > 0}
-                        onChange={handleSelectAll}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                    </th>
-                  )}
-                  <th
-                    onClick={() => handleSort('name')}
-                    className="min-w-[200px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Employee
-                      {sortField === 'name' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
+          {/* ===== MOBILE CARD VIEW (< sm) ===== */}
+          <div className="sm:hidden">
+            {isLoading ? (
+              <div className="divide-y divide-gray-100">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-32 rounded bg-gray-200" />
+                        <div className="h-3 w-44 rounded bg-gray-200" />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-3">
+                      <div className="h-3 w-20 rounded bg-gray-200" />
+                      <div className="h-3 w-24 rounded bg-gray-200" />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+                      <div className="h-5 w-20 rounded bg-gray-200" />
+                      {isHRManager && (
+                        <div className="flex gap-2">
+                          <div className="h-8 w-14 rounded bg-gray-200" />
+                          <div className="h-8 w-16 rounded bg-gray-200" />
+                        </div>
                       )}
                     </div>
-                  </th>
-                  <th className="min-w-[150px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Department
-                  </th>
-                  <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Designation
-                  </th>
-                  <th
-                    onClick={() => handleSort('status')}
-                    className="min-w-[100px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Status
-                      {sortField === 'status' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
+                  </div>
+                ))}
+              </div>
+            ) : filteredEmployees.length === 0 ? (
+              <EmptyState isHRManager={isHRManager} onAddEmployee={handleAddEmployee} />
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {paginatedEmployees.map((employee) => (
+                  <div key={employee.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Avatar name={employee.fullName} />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails(employee)}
+                            className="truncate font-medium text-gray-900 hover:text-blue-600 text-left focus:outline-none cursor-pointer"
+                          >
+                            {employee.fullName}
+                          </button>
+                          <p className="truncate text-sm text-gray-500">{employee.email}</p>
+                        </div>
+                      </div>
+                      <StatusBadge status={mapStatus(employee.status)} />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                      <span>{employee.department.name}</span>
+                      <span className="text-gray-300">|</span>
+                      <span>{employee.designation}</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+                      <span className="text-lg font-bold text-gray-900">
+                        {formatSalary(employee.salary)}
+                      </span>
+                      {isHRManager && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(employee)}
+                            disabled={deleteMutation.isPending}
+                            className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-blue-400 cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(employee)}
+                            disabled={deleteMutation.isPending}
+                            className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
+                          >
+                            {deleteMutation.isPending && deleteMutation.variables === employee.id && (
+                              <LoadingSpinner size="sm" className="text-white" />
+                            )}
+                            {deleteMutation.isPending && deleteMutation.variables === employee.id
+                              ? 'Deleting...'
+                              : 'Delete'}
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('salary')}
-                    className="min-w-[120px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Salary
-                      {sortField === 'salary' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  {isHRManager && (
-                    <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading &&
-                  Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                    <SkeletonRow key={index} showActions={isHRManager} />
-                  ))}
-
-                {!isLoading && filteredEmployees.length === 0 && (
-                  <tr>
-                    <td colSpan={columnCount}>
-                      <EmptyState
-                        isHRManager={isHRManager}
-                        onAddEmployee={handleAddEmployee}
-                      />
-                    </td>
-                  </tr>
-                )}
-
-                {!isLoading &&
-                  paginatedEmployees.map((employee) => (
-                    <EmployeeRow
-                      key={employee.id}
-                      employee={employee}
-                      isHRManager={isHRManager}
-                      isSelected={selectedEmployees.has(employee.id)}
-                      onSelect={handleSelectOne}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onViewDetails={handleViewDetails}
-                      isDeleting={
-                        deleteMutation.isPending &&
-                        deleteMutation.variables === employee.id
-                      }
-                      disableActions={deleteMutation.isPending}
-                    />
-                  ))}
-              </tbody>
-            </table>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-                  {!isLoading && totalCount > 0 && (
+          {/* ===== DESKTOP TABLE VIEW (sm+) ===== */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
+                  <tr>
+                    {isHRManager && (
+                      <th className="px-3 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected && selectedEmployees.size > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
+                    <th
+                      onClick={() => handleSort('name')}
+                      className="min-w-[200px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Employee
+                        {sortField === 'name' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="min-w-[150px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                      Department
+                    </th>
+                    <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                      Designation
+                    </th>
+                    <th
+                      onClick={() => handleSort('status')}
+                      className="min-w-[100px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortField === 'status' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('salary')}
+                      className="min-w-[120px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Salary
+                        {sortField === 'salary' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    {isHRManager && (
+                      <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                        Actions
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading &&
+                    Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                      <SkeletonRow key={index} showActions={isHRManager} />
+                    ))}
+
+                  {!isLoading && filteredEmployees.length === 0 && (
+                    <tr>
+                      <td colSpan={columnCount}>
+                        <EmptyState
+                          isHRManager={isHRManager}
+                          onAddEmployee={handleAddEmployee}
+                        />
+                      </td>
+                    </tr>
+                  )}
+
+                  {!isLoading &&
+                    paginatedEmployees.map((employee) => (
+                      <EmployeeRow
+                        key={employee.id}
+                        employee={employee}
+                        isHRManager={isHRManager}
+                        isSelected={selectedEmployees.has(employee.id)}
+                        onSelect={handleSelectOne}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onViewDetails={handleViewDetails}
+                        isDeleting={
+                          deleteMutation.isPending &&
+                          deleteMutation.variables === employee.id
+                        }
+                        disableActions={deleteMutation.isPending}
+                      />
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {!isLoading && totalCount > 0 && (
             <PaginationBar
               currentPage={effectivePage}
               totalPages={totalPages}

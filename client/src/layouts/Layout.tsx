@@ -1,4 +1,4 @@
-import React, { type ReactNode, useMemo } from 'react';
+import React, { type ReactNode, useMemo, useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { useLeaves } from '../hooks/useLeave';
@@ -30,8 +30,13 @@ function getLeaveEmployeeId(leave: { employee: string | { id: string } }): strin
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const { user, logout, isAdmin, isHR, isManager, isEmployee } = useAuth();
+
+  const closeSidebar = useCallback(() => {
+    setIsSidebarOpen(false);
+  }, []);
 
   const { data: leaves, isLoading: leavesLoading } = useLeaves();
 
@@ -84,11 +89,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen">
-      <aside className="fixed left-0 top-0 flex h-screen w-14 flex-col border-r border-slate-700 bg-slate-900 md:w-60">
+      {/* Hamburger button — visible on mobile only */}
+      <button
+        type="button"
+        onClick={() => setIsSidebarOpen((prev) => !prev)}
+        className="fixed left-4 top-4 z-[60] flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-md md:hidden"
+        aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+      >
+        <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Backdrop — visible on mobile when sidebar is open */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/50 transition-opacity duration-300 md:hidden"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 z-50 flex h-screen w-60 flex-col border-r border-slate-700 bg-slate-900 transition-transform duration-300 ease-in-out md:static md:z-auto md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="p-4">
-          <div className="flex items-center justify-center gap-3 md:justify-start">
+          <div className="flex w-full items-center justify-center gap-3 md:justify-start">
             <div className="h-8 w-8 shrink-0 rounded-md bg-blue-600" />
             <span className="hidden text-lg font-bold text-white md:inline">HRMS</span>
+            <button
+              type="button"
+              onClick={closeSidebar}
+              className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white md:hidden"
+              aria-label="Close sidebar"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
           <div className="mt-4 border-b border-slate-700" />
         </div>
@@ -102,16 +142,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 title={item.label}
-                className={`flex items-center justify-center gap-3 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors md:justify-start md:px-3 ${
+                onClick={closeSidebar}
+                className={`flex items-center gap-3 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors md:justify-start md:px-3 ${
                   active
                     ? 'bg-blue-600 text-white'
                     : 'bg-transparent text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
               >
                 <span aria-hidden="true">{item.icon}</span>
-                <span className="hidden md:inline">{item.label}</span>
+                <span>{item.label}</span>
                 {item.label === 'Leave' && !leavesLoading && pendingLeaveCount > 0 && (
-                  <span className="ml-auto hidden h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white md:flex">
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
                     {pendingLeaveCount > 9 ? '9+' : pendingLeaveCount}
                   </span>
                 )}
@@ -122,7 +163,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         <div className="border-t border-slate-700 p-4">
           {user ? (
-            <div className="mb-4 hidden items-center gap-3 md:flex">
+            <div className="mb-4 flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
                 {user.name[0]?.toUpperCase() ?? '?'}
               </div>
@@ -147,7 +188,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
           ) : (
-            <div className="mb-4 hidden items-center gap-3 md:flex">
+            <div className="mb-4 flex items-center gap-3">
               <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-slate-700" />
               <div className="flex-1 space-y-2">
                 <div className="h-3.5 w-24 animate-pulse rounded bg-slate-700" />
@@ -160,18 +201,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center justify-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-500 md:justify-start md:px-3"
+            className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium text-gray-400 transition-colors hover:text-red-500 md:justify-start md:px-3"
           >
             <span aria-hidden="true">🚪</span>
-            <span className="hidden md:inline">Logout</span>
+            <span>Logout</span>
           </button>
 
           <ApiStatus />
-          <p className="hidden text-center text-[10px] text-gray-500 md:block">v1.0.0</p>
+          <p className="text-center text-[10px] text-gray-500">v1.0.0</p>
         </div>
       </aside>
 
-      <main className="ml-14 flex-1 animate-fade-in overflow-y-auto bg-gray-50 p-6 md:ml-60">
+      <main className="flex-1 animate-fade-in overflow-y-auto bg-gray-50 p-6 md:ml-60">
         <p className="mb-4 text-xs text-gray-400">
           Home <span className="mx-1">&gt;</span> {pageName}
         </p>

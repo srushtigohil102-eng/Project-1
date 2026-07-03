@@ -178,7 +178,7 @@ export const DEMO_PAYROLL: PayrollRecord[] = [
   {
     id: 'demo-pr-1',
     employee: { id: 'demo-emp-1', firstName: 'Rahul', lastName: 'Sharma', fullName: 'Rahul Sharma', email: 'rahul@company.com', employeeId: 'EMP001' },
-    month: 'June',
+    month: 6,
     year: 2026,
     salaryBreakdown: { basic: 40000, hra: 8000, da: 5000, ta: 2000, medicalAllowance: 3000, specialAllowance: 2000, bonus: 0 },
     deductionBreakdown: { tax: 5000, providentFund: 3600, professionalTax: 200, insurance: 1200 },
@@ -195,7 +195,7 @@ export const DEMO_PAYROLL: PayrollRecord[] = [
   {
     id: 'demo-pr-2',
     employee: { id: 'demo-emp-2', firstName: 'Priya', lastName: 'Nair', fullName: 'Priya Nair', email: 'priya@company.com', employeeId: 'EMP002' },
-    month: 'June',
+    month: 6,
     year: 2026,
     salaryBreakdown: { basic: 35000, hra: 7000, da: 4500, ta: 1500, medicalAllowance: 2500, specialAllowance: 1500, bonus: 0 },
     deductionBreakdown: { tax: 4000, providentFund: 3300, professionalTax: 200, insurance: 1000 },
@@ -212,7 +212,7 @@ export const DEMO_PAYROLL: PayrollRecord[] = [
   {
     id: 'demo-pr-3',
     employee: { id: 'demo-emp-5', firstName: 'Kiran', lastName: 'Kumar', fullName: 'Kiran Kumar', email: 'kiran@company.com', employeeId: 'EMP005' },
-    month: 'June',
+    month: 6,
     year: 2026,
     salaryBreakdown: { basic: 45000, hra: 9000, da: 5500, ta: 2500, medicalAllowance: 3500, specialAllowance: 2500, bonus: 0 },
     deductionBreakdown: { tax: 5500, providentFund: 3900, professionalTax: 200, insurance: 1500 },

@@ -249,7 +249,7 @@ function DashboardPage() {
   const payrollThisMonth = useMemo(() => {
     if (!payroll) return 0;
     return payroll
-      .filter((r) => r.month === MONTH_NAMES[currentMonth] && r.year === currentYear)
+      .filter((r) => r.month === currentMonth + 1 && r.year === currentYear)
       .reduce((sum, r) => sum + calculateNetPay(r.salaryBreakdown, r.deductionBreakdown), 0);
   }, [payroll, currentMonth, currentYear]);
 
@@ -354,7 +354,7 @@ function DashboardPage() {
   const myPayrollThisMonth = useMemo(() => {
     if (!payroll || !user) return null;
     return payroll.find(
-      (p) => typeof p.employee === 'object' && p.employee !== null && 'id' in p.employee && p.employee.id === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
+      (p) => p.employee.id === user.id && p.month === currentMonth + 1 && p.year === currentYear
     ) ?? null;
   }, [payroll, user, currentMonth, currentYear]);
 
@@ -404,7 +404,7 @@ function DashboardPage() {
 
     if (payroll && user) {
       const myPayroll = payroll.filter(
-        (p) => typeof p.employee === 'object' && p.employee !== null && 'id' in p.employee && p.employee.id === user.id && p.month === MONTH_NAMES[currentMonth] && p.year === currentYear
+        (p) => p.employee.id === user.id && p.month === currentMonth + 1 && p.year === currentYear
       );
       myPayroll.forEach((p) => {
         items.push({ type: 'payroll', name: 'Your', action: `payslip is ready for ${p.month} ${p.year}`, timestamp: new Date() });
