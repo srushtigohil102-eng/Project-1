@@ -6,6 +6,7 @@ import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
 import { formatTimeAgo, calculateLeaveDays, formatIndianCurrency, calculateNetPay } from '../utils/helpers';
 import { showSuccess } from '../utils/toast';
+import Avatar from '../components/Avatar';
 
 function safeTimestamp(dateStr: string | undefined | null): number {
   if (!dateStr) return 0;
@@ -317,6 +318,62 @@ function DashboardPage() {
     return entries.map((e) => ({ ...e, percentage: (e.count / maxCount) * 100 }));
   }, [employees]);
 
+  /* ────────────── Employee Status Breakdown (Section 1) ────────────── */
+  const statusBreakdown = useMemo(() => {
+    if (!employees) return { items: [], total: 0 };
+    const counts: Record<string, number> = {};
+    employees.forEach((e) => {
+      const s = e.status.toLowerCase();
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    const total = (counts.active || 0) + (counts['on leave'] || 0) + (counts.inactive || 0) || 1;
+    const items = [
+      { label: 'Active', key: 'active', count: counts.active || 0, barColor: 'bg-green-500', textColor: 'text-green-700' },
+      { label: 'On Leave', key: 'on leave', count: counts['on leave'] || 0, barColor: 'bg-amber-500', textColor: 'text-amber-700' },
+      { label: 'Inactive', key: 'inactive', count: counts.inactive || 0, barColor: 'bg-red-500', textColor: 'text-red-700' },
+    ];
+    return { items, total };
+  }, [employees]);
+
+  /* ────────────── Leave Trend This Month (Section 3) ────────────── */
+  const leaveTrend = useMemo(() => {
+    if (!leaves) return { current: 0, previous: 0, diff: 0, increased: false };
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const currentCount = leaves.filter((l) => {
+      const d = safeDate(l.createdAt);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }).length;
+    const prevCount = leaves.filter((l) => {
+      const d = safeDate(l.createdAt);
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    }).length;
+    return {
+      current: currentCount,
+      previous: prevCount,
+      diff: currentCount - prevCount,
+      increased: currentCount > prevCount,
+    };
+  }, [leaves, currentMonth, currentYear]);
+
+  /* ────────────── Recent Hires This Year (Section 4) ────────────── */
+  const recentHires = useMemo(() => {
+    if (!employees) return [];
+    return [...employees]
+      .filter((e) => {
+        const d = safeDate(e.joiningDate || e.createdAt);
+        return d.getFullYear() === currentYear;
+      })
+      .sort((a, b) => safeTimestamp(b.joiningDate || b.createdAt) - safeTimestamp(a.joiningDate || a.createdAt))
+      .slice(0, 3);
+  }, [employees, currentYear]);
+
+  function formatJoinDate(dateStr: string | undefined | null): string {
+    const d = safeDate(dateStr);
+    if (d.getTime() === 0) return 'N/A';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
   const handleAddEmployee = (): void => {
     showSuccess('Opening add employee form');
   };
@@ -497,6 +554,63 @@ function DashboardPage() {
             />
           </section>
 
+          {/* Section 1 + Section 3 - Employee Status & Leave Trend */}
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Employee Status Breakdown */}
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Employee Status</h3>
+              <p className="text-xs text-gray-500 mb-4">Breakdown of all employees</p>
+              <div className="space-y-4">
+                {statusBreakdown.items.map((item) => {
+                  const pct = Math.round((item.count / statusBreakdown.total) * 100);
+                  return (
+                    <div key={item.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.barColor}`} />
+                          <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {item.count} <span className="text-xs font-normal text-gray-400">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="relative h-4 w-full rounded-full bg-gray-100">
+                        <div
+                          className={`h-full rounded-full transition-all ${item.barColor}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Leave Trend This Month */}
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Leave Trend</h3>
+              <p className="text-xs text-gray-500 mb-4">This month vs last month</p>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="rounded-lg bg-blue-50 p-3">
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">This Month</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{leaveTrend.current}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Last Month</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{leaveTrend.previous}</p>
+                </div>
+              </div>
+              {leaveTrend.diff !== 0 ? (
+                <div className={`flex items-center gap-1.5 text-sm font-medium ${leaveTrend.increased ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className="text-lg">{leaveTrend.increased ? '↑' : '↓'}</span>
+                  <span>{Math.abs(leaveTrend.diff)} {leaveTrend.increased ? 'more' : 'fewer'} leave requests than last month</span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Same number of requests as last month</p>
+              )}
+            </div>
+          </section>
+
           {/* Recent Activity (company-wide) */}
           <section className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
             <div className="border-b border-gray-100 px-5 py-4">
@@ -566,29 +680,26 @@ function DashboardPage() {
               </div>
             </div>
 
-            {/* Department Breakdown */}
+            {/* Department Headcount */}
             <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Department Breakdown</h3>
-              <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Department Headcount</h3>
+              <p className="text-xs text-gray-500 mb-4">Employee count per department</p>
+              <div className="space-y-4">
                 {departmentBreakdown.length === 0 ? (
                   <p className="text-sm text-gray-400">No department data available.</p>
                 ) : (
-                  departmentBreakdown.map((dept, i) => {
-                    const isHighest = i === 0 && departmentBreakdown.length > 1 && dept.count > (departmentBreakdown[1]?.count ?? 0);
+                  departmentBreakdown.map((dept) => {
+                    const barBlocks = Math.max(1, Math.round(dept.percentage / 10));
                     return (
                       <div key={dept.department}>
                         <div className="flex items-center justify-between mb-1">
-                          <p className={`text-sm ${isHighest ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                            {dept.department}
-                            {isHighest && <span className="ml-1.5 text-xs text-blue-600">(most)</span>}
-                          </p>
-                          <p className={`text-sm ${isHighest ? 'font-bold text-gray-900' : 'text-gray-500'}`}>{dept.count}</p>
+                          <span className="text-sm font-medium text-gray-700">{dept.department}</span>
+                          <span className="text-sm font-semibold text-gray-900">{dept.count}</span>
                         </div>
-                        <div className="h-2 w-full rounded-full bg-gray-100">
-                          <div
-                            className={`h-full rounded-full transition-all ${isHighest ? 'bg-blue-500' : 'bg-blue-300'}`}
-                            style={{ width: `${dept.percentage}%` }}
-                          />
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: barBlocks }).map((_, i) => (
+                            <div key={i} className={`h-3 w-3 rounded-sm ${dept.count === departmentBreakdown[0]?.count ? 'bg-blue-600' : 'bg-blue-400'}`} />
+                          ))}
                         </div>
                       </div>
                     );
@@ -627,6 +738,28 @@ function DashboardPage() {
                 onClick={() => navigate('/payroll')}
               />
             </div>
+          </section>
+
+          {/* Section 4 - Recent Hires */}
+          <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">Recent Hires</h3>
+            <p className="text-xs text-gray-500 mb-4">Newest team members this year</p>
+            {recentHires.length === 0 ? (
+              <p className="text-sm text-gray-400">No hires this year yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentHires.map((emp) => (
+                  <div key={emp.id} className="flex items-center gap-3">
+                    <Avatar name={emp.fullName} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">{emp.fullName}</p>
+                      <p className="truncate text-xs text-gray-500">{emp.designation} &middot; {emp.department.name}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-gray-400">{formatJoinDate(emp.joiningDate || emp.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </>
       ) : (
@@ -668,6 +801,61 @@ function DashboardPage() {
               accentColor="border-l-4 border-l-purple-500"
               iconBgColor="bg-purple-100"
             />
+          </section>
+
+          {/* Sections 1 + 3 for Employee */}
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Employee Status</h3>
+              <p className="text-xs text-gray-500 mb-4">Company-wide breakdown</p>
+              <div className="space-y-4">
+                {statusBreakdown.items.map((item) => {
+                  const pct = Math.round((item.count / statusBreakdown.total) * 100);
+                  return (
+                    <div key={item.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.barColor}`} />
+                          <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {item.count} <span className="text-xs font-normal text-gray-400">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="relative h-4 w-full rounded-full bg-gray-100">
+                        <div
+                          className={`h-full rounded-full transition-all ${item.barColor}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">Leave Trend</h3>
+              <p className="text-xs text-gray-500 mb-4">This month vs last month</p>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="rounded-lg bg-blue-50 p-3">
+                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">This Month</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{leaveTrend.current}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Last Month</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{leaveTrend.previous}</p>
+                </div>
+              </div>
+              {leaveTrend.diff !== 0 ? (
+                <div className={`flex items-center gap-1.5 text-sm font-medium ${leaveTrend.increased ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className="text-lg">{leaveTrend.increased ? '↑' : '↓'}</span>
+                  <span>{Math.abs(leaveTrend.diff)} {leaveTrend.increased ? 'more' : 'fewer'} leave requests than last month</span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Same number of requests as last month</p>
+              )}
+            </div>
           </section>
 
           {/* Employee Activity Feed (own activity only) */}
