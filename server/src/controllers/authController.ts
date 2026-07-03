@@ -19,6 +19,7 @@ export const login = async (
 
     if (!email?.trim() || !password) {
       res.status(400).json({
+        success: false,
         message: "Email and password are required",
       });
       return;
@@ -26,6 +27,7 @@ export const login = async (
 
     if (!JWT_SECRET) {
       res.status(500).json({
+        success: false,
         message: "Server configuration error",
       });
       return;
@@ -38,6 +40,7 @@ export const login = async (
 
     if (!user) {
       res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
       return;
@@ -50,6 +53,7 @@ export const login = async (
 
     if (!isPasswordValid) {
       res.status(401).json({
+        success: false,
         message: "Invalid email or password",
       });
       return;
@@ -68,7 +72,9 @@ export const login = async (
     );
 
     res.status(200).json({
+      success: true,
       message: "Login successful",
+      data: {
       token,
       user: {
         id: user.id,
@@ -76,9 +82,11 @@ export const login = async (
         email: user.email,
         role: user.role,
       },
-    });
+    },
+  });
   } catch {
     res.status(500).json({
+      success: false,
       message: "Server error. Please try again later.",
     });
   }
