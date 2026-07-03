@@ -37,7 +37,7 @@ async function apiFetch<T>(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    throw new Error('Cannot connect to server. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -46,17 +46,17 @@ async function apiFetch<T>(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    throw new Error('You do not have permission to perform this action');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    throw new Error('The requested resource was not found');
+    throw new Error('The requested item was not found.');
   }
 
   if (response.status === 500) {
@@ -142,8 +142,8 @@ export async function downloadFile(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    showError('Cannot connect to server. Check your connection.');
-    throw new Error('Cannot connect to server. Check your connection.');
+    showError('Cannot connect. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -152,19 +152,19 @@ export async function downloadFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    showError('You do not have permission to perform this action');
-    throw new Error('You do not have permission to perform this action');
+    showError('You do not have permission to do this.');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    showError('The requested resource was not found');
-    throw new Error('The requested resource was not found');
+    showError('The requested item was not found.');
+    throw new Error('The requested item was not found.');
   }
 
   if (response.status === 500) {
@@ -273,8 +273,8 @@ export async function previewFile(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    showError('Cannot connect to server. Check your connection.');
-    throw new Error('Cannot connect to server. Check your connection.');
+    showError('Cannot connect. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -283,19 +283,19 @@ export async function previewFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    showError('You do not have permission to perform this action');
-    throw new Error('You do not have permission to perform this action');
+    showError('You do not have permission to do this.');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    showError('The requested resource was not found');
-    throw new Error('The requested resource was not found');
+    showError('The requested item was not found.');
+    throw new Error('The requested item was not found.');
   }
 
   if (response.status === 500) {
@@ -382,7 +382,7 @@ export async function downloadBatchFile(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new Error('Cannot connect to server. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -395,13 +395,13 @@ export async function downloadBatchFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    throw new Error('You do not have permission to perform this action');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (!response.ok) {

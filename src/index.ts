@@ -1,8 +1,11 @@
 import express, { type Application, type Request, type Response } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/db";
 import dotenv from "dotenv";
+import { errorHandler } from "./middleware/error.middleware";
 import authRoutes from "./routes/auth.routes";
 import employeeRoutes from "./routes/employee.routes";
 import departmentRoutes from "./routes/department.routes";
@@ -37,12 +40,29 @@ app.use(
   })
 );
 
+// ----- Security headers -----
+app.use(helmet());
+
+// ----- Rate limiting -----
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: "Too many requests, please try again later" },
+});
+app.use("/api/", limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: "Too many login attempts, please try again later" },
+});
+
 // ----- Body parsers -----
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ----- Routes -----
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 
 // Test route to verify token middleware works in isolation
 import { verifyTokenMiddleware } from "./middleware/auth.middleware";
@@ -82,6 +102,9 @@ app.get("/health", (_req: Request, res: Response) => {
       mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
   });
 });
+
+// ----- Global error handler (must be last) -----
+app.use(errorHandler);
 
 // ----- Start -----
 const startServer = async () => {
