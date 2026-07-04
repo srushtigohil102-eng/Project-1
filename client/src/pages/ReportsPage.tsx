@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import useEmployees from '../hooks/useEmployees';
 import { useLeaves } from '../hooks/useLeave';
 import { usePayroll } from '../hooks/usePayroll';
 import { formatIndianCurrency, calculateGrossPay, calculateTotalDeductions, calculateNetPay } from '../utils/helpers';
-import { showSuccess } from '../utils/toast';
+import { showSuccess, showError } from '../utils/toast';
 import type { Employee } from '../services/apiService';
 
 /* ─────────── helpers ─────────── */
@@ -37,6 +37,36 @@ function getMode(values: string[]): string {
     }
   }
   return mode || 'N/A';
+}
+
+/* ─────────── CSV helpers ─────────── */
+
+function escapeCSV(value: string | number): string {
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function downloadCSV(filename: string, rows: string[][]): void {
+  const header = rows[0];
+  const body = rows.slice(1);
+  const csvContent = [
+    header.map(escapeCSV).join(','),
+    ...body.map((row) => row.map(escapeCSV).join(',')),
+  ].join('\r\n');
+
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 /* ─────────── ReportsPage ─────────── */
@@ -103,6 +133,61 @@ export default function ReportsPage() {
   );
   const avgNet = currentPayroll.length > 0 ? totalNet / currentPayroll.length : 0;
 
+  /* ── Export CSV ── */
+  const handleExportCSV = useCallback(() => {
+    const rows: string[][] = [];
+
+    // Section 1: Headcount
+    rows.push(['Headcount Overview']);
+    rows.push(['Department', 'Headcount', 'Active', 'On Leave', '% of Total']);
+    for (const dept of deptRows) {
+      rows.push([
+        dept.name,
+        String(dept.total),
+        String(dept.active),
+        String(dept.onLeave),
+        totalHeadcount > 0 ? `${Math.round((dept.total / totalHeadcount) * 100)}%` : '0%',
+      ]);
+    }
+    rows.push([]);
+
+    // Section 2: Leave Analytics
+    rows.push(['Leave Analytics']);
+    rows.push(['Metric', 'Value']);
+    rows.push(['Total Requests', String(totalRequests)]);
+    rows.push(['Avg per Employee', avgRequestsPerEmployee]);
+    rows.push(['Most Common Type', mostCommonLeaveType]);
+    rows.push(['Approval Rate', `${approvalRate}%`]);
+    rows.push([]);
+    rows.push(['Leave Type', 'Requests', 'Approved', 'Rejected', 'Pending']);
+    for (const row of leaveTypeRows) {
+      rows.push([row.type, String(row.total), String(row.approved), String(row.rejected), String(row.pending)]);
+    }
+    rows.push([]);
+
+    // Section 3: Payroll Summary
+    rows.push(['Payroll Summary']);
+    rows.push(['Metric', 'Value']);
+    const monthName = new Date().toLocaleString('default', { month: 'long' });
+    rows.push(['Period', `${monthName} ${currentYear}`]);
+    rows.push(['Total Gross Payroll', `INR ${totalGross.toLocaleString('en-IN')}`]);
+    rows.push(['Total Deductions', `INR ${totalDeductions.toLocaleString('en-IN')}`]);
+    rows.push(['Total Net Disbursement', `INR ${totalNet.toLocaleString('en-IN')}`]);
+    rows.push(['Avg Net per Employee', `INR ${Math.round(avgNet).toLocaleString('en-IN')}`]);
+
+    downloadCSV(`hrms-report-${currentYear}-${currentMonth + 1}.csv`, rows);
+    showSuccess('CSV exported');
+  }, [deptRows, totalHeadcount, totalRequests, avgRequestsPerEmployee, mostCommonLeaveType, approvalRate, leaveTypeRows, currentYear, totalGross, totalDeductions, totalNet, avgNet, currentMonth]);
+
+  /* ── Export PDF (via print) ── */
+  const handleExportPDF = useCallback(() => {
+    try {
+      window.print();
+    } catch {
+      showError('Failed to open print dialog');
+    }
+  }, []);
+
   const isLoading = empLoading || leavesLoading || payrollLoading;
 
   if (isLoading) {
@@ -117,7 +202,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div id="report-content" className="space-y-8">
 
       {/* ── Header with Export buttons ── */}
       <div className="flex items-start justify-between">
@@ -125,17 +210,17 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
           <p className="mt-1 text-sm text-gray-500">Company-wide analytics and insights</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 no-print">
           <button
             type="button"
-            onClick={() => showSuccess('CSV export coming soon')}
+            onClick={handleExportCSV}
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 cursor-pointer"
           >
             Export CSV
           </button>
           <button
             type="button"
-            onClick={() => showSuccess('PDF export coming soon')}
+            onClick={handleExportPDF}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 cursor-pointer"
           >
             Export PDF

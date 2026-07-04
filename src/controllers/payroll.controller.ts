@@ -2,6 +2,12 @@ import { Request, Response } from "express";
 import { Payroll } from "../models/Payroll";
 import { Employee } from "../models/Employee";
 import mongoose from "mongoose";
+import PDFDocument from "pdfkit";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 // ========== EXISTING CRUD FUNCTIONS ==========
 
@@ -260,6 +266,81 @@ export const getPayrollSummary = async (req: Request, res: Response): Promise<vo
     res.status(200).json({ success: true, data: summary });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch payroll summary", error: (error as Error).message });
+  }
+};
+
+// Run payroll for all active employees for the current month
+export const runPayroll = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const activeEmployees = await Employee.find({ isActive: true, status: "Active" });
+
+    if (activeEmployees.length === 0) {
+      res.status(400).json({ success: false, message: "No active employees found to run payroll" });
+      return;
+    }
+
+    const created: any[] = [];
+
+    for (const employee of activeEmployees) {
+      const existing = await Payroll.findOne({ employee: employee._id, month, year });
+      if (existing) continue;
+
+      const basicSalary = employee.salary;
+      const hra = basicSalary * 0.4;
+      const da = basicSalary * 0.1;
+      const ta = basicSalary * 0.08;
+      const medicalAllowance = 1250;
+      const specialAllowance = basicSalary * 0.15;
+
+      const grossSalary = basicSalary + hra + da + ta + medicalAllowance + specialAllowance;
+
+      const pf = basicSalary * 0.12;
+      const professionalTax = basicSalary > 30000 ? 200 : 0;
+      const tax = basicSalary > 100000 ? basicSalary * 0.05 : 0;
+
+      const totalDeductions = pf + professionalTax + tax;
+      const netSalary = grossSalary - totalDeductions;
+
+      const record = await Payroll.create({
+        employee: employee._id,
+        month,
+        year,
+        salaryBreakdown: {
+          basic: basicSalary,
+          hra,
+          da,
+          ta,
+          medicalAllowance,
+          specialAllowance,
+        },
+        grossSalary,
+        deductionBreakdown: {
+          tax,
+          providentFund: pf,
+          professionalTax,
+        },
+        totalDeductions,
+        netSalary,
+        presentDays: 26,
+        totalWorkingDays: 30,
+        status: "Processed",
+        generatedBy: req.user?.id,
+      });
+
+      created.push(record);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: created,
+      message: `Payroll generated for ${created.length} employee(s)`,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to run payroll", error: (error as Error).message });
   }
 };
 
@@ -1063,5 +1144,205 @@ export const getPayrollComparison = async (req: Request, res: Response): Promise
       message: "Failed to fetch payroll comparison", 
       error: (error as Error).message 
     });
+  }
+};
+
+// ========== DOWNLOAD / PREVIEW ==========
+
+/**
+ * Generate and download a payslip PDF for a given employee / month / year.
+ * Query params: month (1-12), year (YYYY)
+ */
+export const downloadPayslip = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId } = req.params;
+    const month = parseInt(req.query.month as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+
+    if (!month || !year || isNaN(month) || isNaN(year)) {
+      res.status(400).json({ success: false, message: "month and year query parameters are required (month: 1-12)" });
+      return;
+    }
+
+    const payroll = await Payroll.findOne({ employee: employeeId, month, year })
+      .populate<{ employee: { _id: mongoose.Types.ObjectId; firstName: string; lastName: string; employeeId: string; designation: string; department: { name: string }; panNumber?: string; pfNumber?: string; bankDetails?: { accountNumber?: string; ifscCode?: string; bankName?: string } } }>(
+        "employee",
+        "firstName lastName employeeId designation department panNumber pfNumber bankDetails"
+      )
+      .populate("generatedBy", "firstName lastName")
+      .populate("approvedBy", "firstName lastName");
+
+    if (!payroll) {
+      res.status(404).json({ success: false, message: "Payroll record not found for this employee and period" });
+      return;
+    }
+
+    const emp = payroll.employee as any;
+
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    res.setHeader("Content-Type", "application/pdf");
+    const filename = `payslip-${emp.employeeId || employeeId}-${MONTH_NAMES[month - 1].toLowerCase()}-${year}.pdf`;
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    doc.pipe(res);
+
+    const pageWidth = doc.page.width - 80;
+    const leftMargin = 40;
+    const centerX = leftMargin + pageWidth / 2;
+
+    // ── Header ──
+    doc.fontSize(20).font("Helvetica-Bold").text("PAYSLIP", centerX, 40, { align: "center" });
+    doc.moveDown(0.3);
+    doc.fontSize(10).font("Helvetica").fillColor("#555555")
+      .text(`${MONTH_NAMES[month - 1]} ${year}`, { align: "center" });
+    doc.moveDown(0.8);
+
+    // separator
+    doc.moveTo(leftMargin, doc.y).lineTo(leftMargin + pageWidth, doc.y).strokeColor("#cccccc").stroke();
+    doc.moveDown(0.8);
+
+    // ── Employee Info ──
+    const infoY = doc.y;
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Employee Information", leftMargin, infoY);
+    doc.moveDown(0.3);
+
+    const infoRows: [string, string][] = [
+      ["Employee ID", emp.employeeId || "—"],
+      ["Name", `${emp.firstName || ""} ${emp.lastName || ""}`],
+      ["Designation", emp.designation || "—"],
+      ["Department", emp.department?.name || "—"],
+      ["PAN Number", emp.panNumber || "—"],
+      ["PF Number", emp.pfNumber || "—"],
+    ];
+
+    doc.fontSize(9).font("Helvetica");
+    let rowY = doc.y;
+    for (const [label, value] of infoRows) {
+      doc.fillColor("#888888").text(label, leftMargin, rowY, { width: 120 });
+      doc.fillColor("#333333").text(value, leftMargin + 125, rowY, { width: 200 });
+      rowY += 14;
+    }
+    doc.y = rowY;
+
+    // separator
+    doc.moveTo(leftMargin, doc.y).lineTo(leftMargin + pageWidth, doc.y).strokeColor("#cccccc").stroke();
+    doc.moveDown(0.6);
+
+    // ── Earnings ──
+    const earningsY = doc.y;
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Earnings", leftMargin, earningsY);
+    doc.moveDown(0.3);
+
+    const sb = payroll.salaryBreakdown;
+    const earningsItems: [string, number][] = [
+      ["Basic Salary", sb.basic],
+      ["House Rent Allowance", sb.hra],
+      ["Dearness Allowance", sb.da],
+      ["Travel Allowance", sb.ta],
+      ["Medical Allowance", sb.medicalAllowance],
+      ["Special Allowance", sb.specialAllowance],
+    ];
+    if (sb.bonus) earningsItems.push(["Bonus", sb.bonus]);
+    if (sb.otherEarnings) earningsItems.push(["Other Earnings", sb.otherEarnings]);
+
+    doc.fontSize(9).font("Helvetica");
+    let earnY = doc.y;
+    for (const [label, amount] of earningsItems) {
+      doc.fillColor("#333333").text(label, leftMargin, earnY, { width: 200 });
+      doc.fillColor("#333333").text(`₹ ${amount.toLocaleString("en-IN")}`, leftMargin + 250, earnY, { width: 100, align: "right" });
+      earnY += 14;
+    }
+    // Gross total
+    earnY += 2;
+    doc.moveTo(leftMargin, earnY - 2).lineTo(leftMargin + pageWidth, earnY - 2).strokeColor("#dddddd").stroke();
+    doc.font("Helvetica-Bold").fillColor("#222222")
+      .text("Gross Salary", leftMargin, earnY, { width: 200 })
+      .text(`₹ ${payroll.grossSalary.toLocaleString("en-IN")}`, leftMargin + 250, earnY, { width: 100, align: "right" });
+    doc.y = earnY + 18;
+
+    // ── Deductions ──
+    doc.moveDown(0.5);
+    const dedY = doc.y;
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Deductions", leftMargin, dedY);
+    doc.moveDown(0.3);
+
+    const db = payroll.deductionBreakdown;
+    const dedItems: [string, number][] = [
+      ["Tax (TDS)", db.tax],
+      ["Provident Fund", db.providentFund],
+      ["Professional Tax", db.professionalTax],
+    ];
+    if (db.insurance) dedItems.push(["Insurance", db.insurance]);
+    if (db.loanDeduction) dedItems.push(["Loan Deduction", db.loanDeduction]);
+    if (db.otherDeductions) dedItems.push(["Other Deductions", db.otherDeductions]);
+
+    doc.fontSize(9).font("Helvetica");
+    let dedRowY = doc.y;
+    for (const [label, amount] of dedItems) {
+      doc.fillColor("#333333").text(label, leftMargin, dedRowY, { width: 200 });
+      doc.fillColor("#333333").text(`₹ ${amount.toLocaleString("en-IN")}`, leftMargin + 250, dedRowY, { width: 100, align: "right" });
+      dedRowY += 14;
+    }
+    // Deduction total
+    dedRowY += 2;
+    doc.moveTo(leftMargin, dedRowY - 2).lineTo(leftMargin + pageWidth, dedRowY - 2).strokeColor("#dddddd").stroke();
+    doc.font("Helvetica-Bold").fillColor("#222222")
+      .text("Total Deductions", leftMargin, dedRowY, { width: 200 })
+      .text(`₹ ${payroll.totalDeductions.toLocaleString("en-IN")}`, leftMargin + 250, dedRowY, { width: 100, align: "right" });
+    doc.y = dedRowY + 22;
+
+    // ── Net Salary (highlighted) ──
+    doc.moveDown(0.5);
+    const netY = doc.y;
+    doc.rect(leftMargin - 4, netY - 2, pageWidth + 8, 28).fill("#e8f4e8");
+    doc.fontSize(13).font("Helvetica-Bold").fillColor("#1a7a1a")
+      .text("NET SALARY", leftMargin + 10, netY + 3, { width: 200 });
+    doc.fillColor("#1a7a1a")
+      .text(`₹ ${payroll.netSalary.toLocaleString("en-IN")}`, leftMargin + 250, netY + 3, { width: 100, align: "right" });
+    doc.y = netY + 32;
+
+    // separator
+    doc.moveTo(leftMargin, doc.y).lineTo(leftMargin + pageWidth, doc.y).strokeColor("#cccccc").stroke();
+    doc.moveDown(0.8);
+
+    // ── Attendance ──
+    if (payroll.presentDays != null) {
+      doc.fontSize(10).font("Helvetica").fillColor("#555555")
+        .text(`Present Days: ${payroll.presentDays} / ${payroll.totalWorkingDays || "—"}`, leftMargin, doc.y, { width: pageWidth / 2 });
+    }
+
+    // ── Status & Payment Info ──
+    doc.moveDown(0.3);
+    const statusY = doc.y;
+    doc.fontSize(9).font("Helvetica").fillColor("#888888").text("Status:", leftMargin, statusY, { width: 80 });
+    doc.fillColor("#333333").text(payroll.status, leftMargin + 80, statusY, { width: 150 });
+
+    if (payroll.status === "Paid" && payroll.paymentDate) {
+      doc.fillColor("#888888").text("Payment Date:", leftMargin + 230, statusY, { width: 100 });
+      doc.fillColor("#333333").text(new Date(payroll.paymentDate).toLocaleDateString("en-IN"), leftMargin + 330, statusY, { width: 120 });
+    }
+
+    doc.y = statusY + 18;
+
+    if (payroll.paymentMethod) {
+      doc.fillColor("#888888").text("Payment Method:", leftMargin, doc.y, { width: 120 });
+      doc.fillColor("#333333").text(payroll.paymentMethod, leftMargin + 120, doc.y, { width: 150 });
+    }
+
+    // ── Footer ──
+    doc.y = doc.page.height - 120;
+    doc.moveTo(leftMargin, doc.y).lineTo(leftMargin + pageWidth, doc.y).strokeColor("#cccccc").stroke();
+    doc.moveDown(0.3);
+    doc.fontSize(7).font("Helvetica").fillColor("#aaaaaa").text(
+      "This is a computer-generated payslip. For any discrepancies, please contact HR.",
+      leftMargin, doc.y,
+      { align: "center", width: pageWidth }
+    );
+
+    doc.end();
+  } catch (error) {
+    console.error("Download payslip error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: "Failed to generate payslip PDF", error: (error as Error).message });
+    }
   }
 };

@@ -212,7 +212,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 animate-fade-in overflow-y-auto bg-gray-50 p-6 md:ml-60">
+      <main className="flex-1 animate-fade-in overflow-y-auto bg-gray-50 p-6">
         <p className="mb-4 text-xs text-gray-400">
           Home <span className="mx-1">&gt;</span> {pageName}
         </p>

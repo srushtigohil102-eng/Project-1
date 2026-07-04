@@ -210,6 +210,27 @@ export async function deleteEmployee(id: string): Promise<void> {
   });
 }
 
+export interface UpdateEmployeeData {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  designation?: string;
+  department?: string;
+  salary?: number;
+  status?: EmployeeStatus;
+}
+
+export async function updateEmployee(
+  id: string,
+  payload: UpdateEmployeeData,
+): Promise<Employee> {
+  const res = await apiFetch<ApiResponse<Employee>>(`/api/employees/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  return res.data;
+}
+
 // ==========================================
 // Leave API Functions
 // ==========================================
@@ -287,6 +308,13 @@ export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]>
     console.warn('[Payroll] getPayrollByEmployee: Expected res.data to be an array, got:', typeof res.data);
   }
   return res.data;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiFetch<ApiResponse<void>>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 export async function runPayroll(): Promise<PayrollRecord[]> {

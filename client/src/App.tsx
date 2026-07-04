@@ -155,7 +155,7 @@ function App() {
         <Route
           path="/payroll"
           element={
-            <ProtectedRoute allowedRoles={['Admin', 'HR']}>
+            <ProtectedRoute allowedRoles={['Admin', 'HR', 'Employee']}>
               <Layout>
                 <PayrollPage />
               </Layout>
@@ -175,7 +175,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute allowedRoles={['Admin']}>
+            <ProtectedRoute>
               <Layout>
                 <SettingsPage />
               </Layout>

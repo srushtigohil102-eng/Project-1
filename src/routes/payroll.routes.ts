@@ -4,6 +4,7 @@ import {
   getPayrollById,
   getPayrollByEmployee,
   generatePayroll,
+  runPayroll,
   updatePayroll,
   processPayment,
   deletePayroll,
@@ -15,7 +16,8 @@ import {
   getTopEarners,
   getTaxBreakdown,
   getPayrollTrends,
-  getPayrollComparison
+  getPayrollComparison,
+  downloadPayslip,
 } from "../controllers/payroll.controller";
 import { verifyTokenMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin, requireHR, requireManager } from "../middleware/role.middleware";
@@ -37,11 +39,13 @@ router.get("/summary", requireManager, getPayrollSummary);
 
 // ========== BASIC CRUD ROUTES ==========
 router.get("/employee/:employeeId", getPayrollByEmployee);
+router.get("/:employeeId/download", downloadPayslip);
 router.get("/", requireManager, getAllPayrollRecords);
 router.get("/:id", requireManager, getPayrollById);
 
 // ========== POST/PUT/DELETE ROUTES ==========
 router.post("/generate", requireHR, generatePayroll);
+router.post("/run", requireHR, runPayroll);
 router.put("/:id", requireHR, updatePayroll);
 router.put("/:id/payment", requireHR, processPayment);
 router.delete("/:id", requireAdmin, deletePayroll);

@@ -223,9 +223,9 @@ After running `npm run seed`:
 
 | Role | Email | Password |
 |------|-------|----------|
-| **HR Manager** | hr@company.com | Hrms@Dev2026! |
-| **Employee** | employee@company.com | Hrms@Dev2026! |
 | **Admin** | admin@hrms.com | Admin@123456 |
+| **HR Manager** | hr@hrms.com | Hr@123456 |
+| **Employee** | employee@hrms.com | Employee@123456 |
 
 ### Demo Mode
 

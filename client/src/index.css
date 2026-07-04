@@ -23,3 +23,33 @@ body {
     opacity: 0;
   }
 }
+
+/* ── Print styles for Reports PDF export ── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #report-content,
+  #report-content * {
+    visibility: visible;
+  }
+  #report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .rounded-xl {
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+  }
+}

@@ -146,9 +146,54 @@ async function seedDatabase() {
     });
     employees.push(admin);
     console.log(`  ✅ ADMIN: ${admin.firstName} ${admin.lastName} (${admin.email})`);
-    
-    // Create 2 HR Users
+
+    // Create HR test account
     const hrDept = departmentDocs.find(d => d.code === "HR")!;
+    const hrTest = await Employee.create({
+      employeeId: "HR2026001",
+      firstName: "HR",
+      lastName: "Manager",
+      email: "hr@hrms.com",
+      phoneNumber: "9876543211",
+      password: "Hr@123456",
+      role: "HR",
+      department: hrDept._id,
+      designation: "HR Manager",
+      salary: 80000,
+      dateOfBirth: new Date(1990, 3, 10),
+      gender: "Female",
+      maritalStatus: "Married",
+      joiningDate: new Date(2021, 0, 1),
+      status: "Active",
+      isActive: true,
+    });
+    employees.push(hrTest);
+    console.log(`  ✅ HR: ${hrTest.firstName} ${hrTest.lastName} (${hrTest.email})`);
+
+    // Create Employee test account
+    const empDept = departmentDocs.find(d => d.code === "ENG")!;
+    const empTest = await Employee.create({
+      employeeId: "EMP2026001",
+      firstName: "John",
+      lastName: "Employee",
+      email: "employee@hrms.com",
+      phoneNumber: "9876543212",
+      password: "Employee@123456",
+      role: "Employee",
+      department: empDept._id,
+      designation: "Software Engineer",
+      salary: 50000,
+      dateOfBirth: new Date(1995, 6, 20),
+      gender: "Male",
+      maritalStatus: "Single",
+      joiningDate: new Date(2022, 5, 15),
+      status: "Active",
+      isActive: true,
+    });
+    employees.push(empTest);
+    console.log(`  ✅ EMPLOYEE: ${empTest.firstName} ${empTest.lastName} (${empTest.email})`);
+
+    // Create 2 HR Users
     for (let i = 0; i < 2; i++) {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
@@ -157,7 +202,7 @@ async function seedDatabase() {
         lastName,
         email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@hrms.com`,
         phoneNumber: faker.phone.number("98#######0"),
-        password: defaultPassword,
+        password: `${firstName}@123456`,
         role: "HR",
         department: hrDept._id,
         designation: randomItem(DESIGNATIONS["HUMAN RESOURCES"]),
@@ -172,7 +217,7 @@ async function seedDatabase() {
         isActive: true,
       });
       employees.push(hr);
-      console.log(`  ✅ HR: ${hr.firstName} ${hr.lastName} (${hr.email})`);
+      console.log(`  ✅ HR: ${hr.firstName} ${hr.lastName} (${hr.email}) Password: ${firstName}@123456`);
     }
     
     // Create 1 Manager per department
@@ -185,7 +230,7 @@ async function seedDatabase() {
         lastName,
         email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${dept.code.toLowerCase()}.com`,
         phoneNumber: faker.phone.number("98#######0"),
-        password: defaultPassword,
+        password: `${firstName}@123456`,
         role: "Manager",
         department: dept._id,
         designation: designation,
@@ -200,7 +245,7 @@ async function seedDatabase() {
         isActive: true,
       });
       employees.push(manager);
-      console.log(`  ✅ MANAGER (${dept.code}): ${manager.firstName} ${manager.lastName}`);
+      console.log(`  ✅ MANAGER (${dept.code}): ${manager.firstName} ${manager.lastName} Password: ${firstName}@123456`);
     }
     
     // Create regular employees (target total 50+ employees)
@@ -226,7 +271,7 @@ async function seedDatabase() {
         lastName,
         email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${department.code.toLowerCase()}.com`,
         phoneNumber: faker.phone.number("98#######0"),
-        password: defaultPassword,
+        password: `${firstName}@123456`,
         role: role,
         department: department._id,
         manager: deptManager?._id,
@@ -416,9 +461,12 @@ console.log(`  ✅ Total leave requests created: ${leaveCount}`);
     console.log(`  📅 Leave Requests: ${leaveCount}`);
     console.log(`  💰 Payroll Records: ${payrollCount}`);
     
-    console.log("\n🔑 DEFAULT LOGIN CREDENTIALS:");
-    console.log("  Email: admin@hrms.com");
-    console.log("  Password: Admin@123456\n");
+    console.log("\n🔑 TEST LOGIN CREDENTIALS:");
+    console.log("  Admin:        admin@hrms.com / Admin@123456");
+    console.log("  HR Manager:   hr@hrms.com / Hr@123456");
+    console.log("  Employee:     employee@hrms.com / Employee@123456");
+    console.log("\n📌 ALL OTHER EMPLOYEES: <email> / <FirstName>@123456");
+    console.log("   Example: john.doe@eng.com / John@123456\n");
     
   } catch (error) {
     console.error("\n❌ Seeding failed:", error);

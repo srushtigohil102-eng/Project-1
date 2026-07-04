@@ -403,7 +403,8 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         return;
       }
 
-      setApiError(error.message || 'Failed to add employee');
+      const serverMsg = body?.error || body?.message || error.message;
+      setApiError(serverMsg || 'Failed to add employee');
     }
   };
 

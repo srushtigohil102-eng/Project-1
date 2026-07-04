@@ -3,6 +3,7 @@ import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddEmployeeModal from '../components/AddEmployeeModal';
+import EditEmployeeModal from '../components/EditEmployeeModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import useAuth from '../hooks/useAuth';
 import useEmployees, {
@@ -430,6 +431,10 @@ function EmployeesPage() {
   // Add employee modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Edit employee modal state
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   // Slide-in drawer details state
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -440,7 +445,8 @@ function EmployeesPage() {
     title: string;
     message: string;
     employeeId: string | null;
-  }>({ isOpen: false, title: '', message: '', employeeId: null });
+    employeeName: string;
+  }>({ isOpen: false, title: '', message: '', employeeId: null, employeeName: '' });
 
   const deletingIdRef = useRef<string | null>(null);
 
@@ -588,7 +594,8 @@ function EmployeesPage() {
   }, []);
 
   const handleEdit = useCallback((employee: Employee): void => {
-    showSuccess(`Edit employee: ${employee.fullName}`);
+    setEditEmployee(employee);
+    setIsEditModalOpen(true);
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
@@ -597,6 +604,7 @@ function EmployeesPage() {
       title: 'Delete Employee',
       message: `Are you sure you want to delete ${employee.fullName}? This action cannot be undone.`,
       employeeId: employee.id,
+      employeeName: employee.fullName,
     });
   }, []);
 
@@ -607,7 +615,7 @@ function EmployeesPage() {
     deletingIdRef.current = id;
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        showSuccess('Employee deleted successfully');
+        showSuccess(`${confirmState.employeeName} has been removed`);
         setConfirmState((prev) => ({ ...prev, isOpen: false }));
         deletingIdRef.current = null;
       },
@@ -617,7 +625,7 @@ function EmployeesPage() {
         deletingIdRef.current = null;
       },
     });
-  }, [confirmState.employeeId, deleteMutation]);
+  }, [confirmState.employeeId, confirmState.employeeName, deleteMutation]);
 
   const handleCancelDelete = useCallback((): void => {
     setConfirmState((prev) => ({ ...prev, isOpen: false }));
@@ -976,6 +984,19 @@ function EmployeesPage() {
       <AddEmployeeModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={isEditModalOpen}
+        employee={editEmployee}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditEmployee(null);
+        }}
         onSuccess={() => {
           void refetch();
         }}

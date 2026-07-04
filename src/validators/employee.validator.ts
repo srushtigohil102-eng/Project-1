@@ -6,7 +6,7 @@ export const createEmployeeSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters").max(50),
   email: z.string().email("Invalid email address"),
   salary: z.number().positive("Salary must be positive"),
-});
+}).passthrough();
 
 export const updateEmployeeSchema = z.object({
   firstName: z.string().min(2).max(50).optional(),

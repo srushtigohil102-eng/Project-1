@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import useEmployees from '../hooks/useEmployees';
@@ -7,6 +7,7 @@ import { usePayroll } from '../hooks/usePayroll';
 import { formatTimeAgo, calculateLeaveDays, formatIndianCurrency, calculateNetPay } from '../utils/helpers';
 import { showSuccess } from '../utils/toast';
 import Avatar from '../components/Avatar';
+import AddEmployeeModal from '../components/AddEmployeeModal';
 
 function safeTimestamp(dateStr: string | undefined | null): number {
   if (!dateStr) return 0;
@@ -207,6 +208,7 @@ function DashboardSkeleton() {
 function DashboardPage() {
   const { user, isHRManager } = useAuth();
   const navigate = useNavigate();
+  const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
 
   const { data: employees, isLoading: empLoading, isError: empError } = useEmployees();
   const { data: leaves, isLoading: leaveLoading, isError: leaveError } = useLeaves();
@@ -375,7 +377,7 @@ function DashboardPage() {
   }
 
   const handleAddEmployee = (): void => {
-    showSuccess('Opening add employee form');
+    setIsAddEmployeeModalOpen(true);
   };
 
   /* ────────────── EMPLOYEE computed data ────────────── */
@@ -480,7 +482,7 @@ function DashboardPage() {
   }, [leaves, payroll, user, currentMonth, currentYear]);
 
   const handleViewProfile = (): void => {
-    showSuccess('Opening profile view');
+    navigate('/settings');
   };
 
   if (isLoading) {
@@ -911,6 +913,12 @@ function DashboardPage() {
           </section>
         </>
       )}
+
+      <AddEmployeeModal
+        isOpen={isAddEmployeeModalOpen}
+        onClose={() => setIsAddEmployeeModalOpen(false)}
+        onSuccess={() => setIsAddEmployeeModalOpen(false)}
+      />
     </div>
   );
 }

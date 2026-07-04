@@ -65,7 +65,7 @@ export const getEmployeeById = async (req: Request, res: Response): Promise<void
 // Create new employee
 export const createEmployee = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email, department } = req.body;
     
     const existingEmail = await Employee.findOne({ email });
     if (existingEmail) {
@@ -73,8 +73,20 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
       return;
     }
     
+    // Map department name to ObjectId if a string name was sent
+    let departmentId = department;
+    if (typeof department === "string") {
+      const deptDoc = await DepartmentModel.findOne({ name: { $regex: new RegExp(`^${department}$`, "i") } });
+      if (!deptDoc) {
+        res.status(400).json({ success: false, message: `Department "${department}" not found` });
+        return;
+      }
+      departmentId = deptDoc._id;
+    }
+    
     const employee = await Employee.create({
       ...req.body,
+      department: departmentId,
       password: req.body.password || "Welcome@123",
       createdBy: req.user?.id
     });

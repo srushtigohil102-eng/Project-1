@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useAuth from '../hooks/useAuth';
+import { changePassword } from '../services/apiService';
 import { showSuccess, showError } from '../utils/toast';
-import ConfirmDialog from '../components/ConfirmDialog';
-
-/* ─────────── Strength indicator ─────────── */
 
 function getPasswordStrength(password: string): { label: string; color: string; width: string } {
   if (!password) return { label: '', color: 'bg-gray-200', width: 'w-0' };
@@ -19,37 +17,74 @@ function getPasswordStrength(password: string): { label: string; color: string; 
   return { label: 'Strong', color: 'bg-green-500', width: 'w-full' };
 }
 
-/* ─────────── SectionDivider ─────────── */
-
 function SectionDivider() {
   return <hr className="my-8 border-gray-200" />;
 }
 
-/* ─────────── SettingsPage ─────────── */
+const STORAGE_PREFIX = 'hrms_settings_';
+
+function loadToggle(key: string, defaultValue: boolean): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_PREFIX + key);
+    return stored !== null ? stored === 'true' : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveToggle(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, String(value));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
 
-  /* Section 2 — System toggles */
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [autoApprove, setAutoApprove] = useState(false);
-  const [payrollReminders, setPayrollReminders] = useState(true);
+  /* Section 1 — Profile */
+  const [name, setName] = useState(user?.name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setEmail(user.email);
+    }
+  }, [user]);
+
+  /* Section 2 — System toggles (persisted to localStorage) */
+  const [emailNotifications, setEmailNotifications] = useState(() => loadToggle('emailNotifications', true));
+  const [autoApprove, setAutoApprove] = useState(() => loadToggle('autoApprove', false));
+  const [darkMode, setDarkMode] = useState(() => loadToggle('darkMode', false));
+  const [smsNotifications, setSmsNotifications] = useState(() => loadToggle('smsNotifications', false));
 
   /* Section 3 — Password form */
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const strength = getPasswordStrength(newPassword);
-  const passwordsMatch = newPassword === confirmPassword;
+  const passwordsMatch = !confirmPassword || newPassword === confirmPassword;
 
-  /* Section 4 — Danger zone */
-  const [showDangerDialog, setShowDangerDialog] = useState(false);
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const handleSaveSettings = () => {
-    showSuccess('Settings saved successfully');
+    saveToggle('emailNotifications', emailNotifications);
+    saveToggle('autoApprove', autoApprove);
+    saveToggle('darkMode', darkMode);
+    saveToggle('smsNotifications', smsNotifications);
+    showSuccess('Settings saved');
   };
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       showError('Please fill in all password fields');
       return;
@@ -58,67 +93,105 @@ export default function SettingsPage() {
       showError('New password must be at least 8 characters');
       return;
     }
-    if (!passwordsMatch) {
+    if (newPassword !== confirmPassword) {
       showError('Passwords do not match');
       return;
     }
-    showSuccess('Password update coming in next version');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  };
-
-  const handleResetAllData = () => {
-    setShowDangerDialog(false);
-    showSuccess('This feature is disabled in demo mode');
+    setIsChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      showSuccess('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      showError((err as Error).message);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
     <div className="space-y-2">
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="mt-1 text-sm text-gray-500">Manage your account and system preferences</p>
       </div>
 
-      {/* ═══════════ Section 1: Profile ═══════════ */}
+      {/* Section 1: Profile */}
       <section className="mt-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">My Profile</h2>
         <p className="mb-6 text-sm text-gray-500">Your account information</p>
 
         <div className="space-y-5">
-          <ProfileField label="Name" value={user?.name ?? '—'} />
-          <ProfileField label="Email" value={user?.email ?? '—'} />
-          <ProfileField label="Role" value={user?.role ?? '—'} />
-          <ProfileField label="Employee ID" value="ADMIN2026001" />
+          <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+            <div className="flex-1">
+              <p className="text-xs font-medium text-gray-500">Name</p>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-0.5 w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+            <div className="flex-1">
+              <p className="text-xs font-medium text-gray-500">Email</p>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-0.5 w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+            <div>
+              <p className="text-xs font-medium text-gray-500">Role</p>
+              <p className="mt-0.5 text-sm font-semibold text-gray-900">{user?.role ?? '—'}</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-gray-500">Employee ID</p>
+              <p className="mt-0.5 text-sm font-semibold text-gray-900">{user?.id?.toUpperCase().slice(0, 12) ?? '—'}</p>
+            </div>
+          </div>
         </div>
       </section>
 
       <SectionDivider />
 
-      {/* ═══════════ Section 2: System Configuration ═══════════ */}
+      {/* Section 2: System Configuration */}
       <section className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">System Configuration</h2>
         <p className="mb-6 text-sm text-gray-500">Manage system-wide preferences</p>
 
         <div className="space-y-5">
           <ToggleRow
+            label="Dark Mode"
+            description="Switch to dark theme"
+            checked={darkMode}
+            onChange={(v) => { setDarkMode(v); saveToggle('darkMode', v); }}
+          />
+          <ToggleRow
             label="Email Notifications"
             description="Send email alerts for leave requests"
             checked={emailNotifications}
-            onChange={setEmailNotifications}
+            onChange={(v) => { setEmailNotifications(v); saveToggle('emailNotifications', v); }}
+          />
+          <ToggleRow
+            label="SMS Notifications"
+            description="Send SMS for payroll and leave updates"
+            checked={smsNotifications}
+            onChange={(v) => { setSmsNotifications(v); saveToggle('smsNotifications', v); }}
           />
           <ToggleRow
             label="Auto-approve leaves under 2 days"
             description="Automatically approve leaves of 1-2 days"
             checked={autoApprove}
-            onChange={setAutoApprove}
-          />
-          <ToggleRow
-            label="Payroll reminders"
-            description="Send monthly payroll processing reminders"
-            checked={payrollReminders}
-            onChange={setPayrollReminders}
+            onChange={(v) => { setAutoApprove(v); saveToggle('autoApprove', v); }}
           />
         </div>
 
@@ -133,7 +206,7 @@ export default function SettingsPage() {
 
       <SectionDivider />
 
-      {/* ═══════════ Section 3: Security ═══════════ */}
+      {/* Section 3: Security */}
       <section className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Security</h2>
         <p className="mb-6 text-sm text-gray-500">Manage your password and active sessions</p>
@@ -194,9 +267,10 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleUpdatePassword}
-              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 cursor-pointer"
+              disabled={isChangingPassword}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              Update Password
+              {isChangingPassword ? 'Updating...' : 'Update Password'}
             </button>
             {!passwordsMatch && confirmPassword && (
               <span className="text-xs font-medium text-red-600">Passwords do not match</span>
@@ -232,55 +306,22 @@ export default function SettingsPage() {
 
       <SectionDivider />
 
-      {/* ═══════════ Section 4: Danger Zone ═══════════ */}
+      {/* Section 4: Danger Zone */}
       <section className="rounded-xl border-2 border-red-200 bg-red-50 p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-red-800">Danger Zone</h2>
         <p className="mb-4 text-sm text-red-600">Irreversible actions that affect the entire system</p>
 
         <button
           type="button"
-          onClick={() => setShowDangerDialog(true)}
+          onClick={() => showSuccess('This feature is disabled in demo mode')}
           className="rounded-lg border-2 border-red-600 bg-white px-5 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 cursor-pointer"
         >
           Reset All Data
         </button>
       </section>
-
-      {/* Confirm Dialog */}
-      <ConfirmDialog
-        isOpen={showDangerDialog}
-        title="Are you absolutely sure?"
-        message="This will delete all employees, leaves, and payroll records. This action cannot be undone."
-        confirmText="Reset Everything"
-        confirmColor="red"
-        onConfirm={handleResetAllData}
-        onCancel={() => setShowDangerDialog(false)}
-      />
     </div>
   );
 }
-
-/* ─────────── ProfileField ─────────── */
-
-function ProfileField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-      <div>
-        <p className="text-xs font-medium text-gray-500">{label}</p>
-        <p className="mt-0.5 text-sm font-semibold text-gray-900">{value}</p>
-      </div>
-      <button
-        type="button"
-        onClick={() => showSuccess('Profile editing coming soon')}
-        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-50 cursor-pointer"
-      >
-        Edit
-      </button>
-    </div>
-  );
-}
-
-/* ─────────── ToggleRow ─────────── */
 
 function ToggleRow({
   label,
