@@ -62,6 +62,14 @@ function PayrollPage() {
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
+  const getDepartmentName = (record: PayrollRecord): string => {
+    const dept = record.employee?.department;
+    if (!dept) return '—';
+    if (typeof dept === 'string') return '—';
+    if (typeof dept === 'object' && dept.name) return dept.name;
+    return '—';
+  };
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,7 +158,7 @@ function PayrollPage() {
 
   const departmentEmployeeCount = useMemo(() => {
     if (selectedDepartment === 'All Departments') return filteredRecords.length;
-    return filteredRecords.filter((r) => r.employee.department?.name === selectedDepartment).length;
+    return filteredRecords.filter((r) => getDepartmentName(r) === selectedDepartment).length;
   }, [filteredRecords, selectedDepartment]);
 
   const handleDownload = useCallback((record: PayrollRecord) => {
@@ -183,9 +191,7 @@ function PayrollPage() {
 
     downloadPayslipMutation.mutate(
       {
-        employeeId: record.employee.id,
-        month: MONTH_NAMES[record.month - 1],
-        year: String(record.year),
+        payrollId: record.id,
         employeeName: record.employee.fullName,
         signal: abortController.signal,
       },
@@ -219,9 +225,7 @@ function PayrollPage() {
     setPreviewingId(record.id);
     previewPayslipMutation.mutate(
       {
-        employeeId: record.employee.id,
-        month: MONTH_NAMES[record.month - 1],
-        year: String(record.year),
+        payrollId: record.id,
       },
       {
         onSuccess: () => {
@@ -540,7 +544,7 @@ function PayrollPage() {
                       </td>
                       {isHRManager && (
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {record.employee.department?.name ?? '—'}
+                          {getDepartmentName(record)}
                         </td>
                       )}
                       <td className="px-4 py-3 text-right text-sm text-gray-900 font-medium">
