@@ -32,7 +32,7 @@ export const getAllPayrollRecords = async (req: Request, res: Response): Promise
     
     const [payrolls, total] = await Promise.all([
       Payroll.find(filter)
-        .populate("employee", "firstName lastName email employeeId designation")
+        .populate({ path: "employee", select: "firstName lastName email employeeId designation department", populate: { path: "department", select: "name code" } })
         .populate("generatedBy", "firstName lastName email")
         .populate("approvedBy", "firstName lastName email")
         .skip(skip)
@@ -55,7 +55,7 @@ export const getAllPayrollRecords = async (req: Request, res: Response): Promise
 export const getPayrollById = async (req: Request, res: Response): Promise<void> => {
   try {
     const payroll = await Payroll.findById(req.params.id)
-      .populate("employee", "firstName lastName email employeeId designation department")
+      .populate({ path: "employee", select: "firstName lastName email employeeId designation department", populate: { path: "department", select: "name code" } })
       .populate("generatedBy", "firstName lastName email")
       .populate("approvedBy", "firstName lastName email");
     
@@ -90,7 +90,7 @@ export const getPayrollByEmployee = async (req: Request, res: Response): Promise
     }
     
     const payrolls = await Payroll.find(filter)
-      .populate("employee", "firstName lastName email employeeId")
+      .populate({ path: "employee", select: "firstName lastName email employeeId department", populate: { path: "department", select: "name code" } })
       .sort({ year: -1, month: -1 });
     
     res.status(200).json({ success: true, data: payrolls });
@@ -1150,21 +1150,16 @@ export const getPayrollComparison = async (req: Request, res: Response): Promise
 // ========== DOWNLOAD / PREVIEW ==========
 
 /**
- * Generate and download a payslip PDF for a given employee / month / year.
- * Query params: month (1-12), year (YYYY)
+ * Generate and download/preview a payslip PDF for a payroll record.
+ * Route param: id — the payroll record's _id
+ * Query param: preview=true — set Content-Disposition to inline (opens in browser)
  */
 export const downloadPayslip = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { employeeId } = req.params;
-    const month = parseInt(req.query.month as string, 10);
-    const year = parseInt(req.query.year as string, 10);
+    const { id } = req.params;
+    const isPreview = req.query.preview === "true";
 
-    if (!month || !year || isNaN(month) || isNaN(year)) {
-      res.status(400).json({ success: false, message: "month and year query parameters are required (month: 1-12)" });
-      return;
-    }
-
-    const payroll = await Payroll.findOne({ employee: employeeId, month, year })
+    const payroll = await Payroll.findById(id)
       .populate<{ employee: { _id: mongoose.Types.ObjectId; firstName: string; lastName: string; employeeId: string; designation: string; department: { name: string }; panNumber?: string; pfNumber?: string; bankDetails?: { accountNumber?: string; ifscCode?: string; bankName?: string } } }>(
         "employee",
         "firstName lastName employeeId designation department panNumber pfNumber bankDetails"
@@ -1173,16 +1168,18 @@ export const downloadPayslip = async (req: Request, res: Response): Promise<void
       .populate("approvedBy", "firstName lastName");
 
     if (!payroll) {
-      res.status(404).json({ success: false, message: "Payroll record not found for this employee and period" });
+      res.status(404).json({ success: false, message: "Payroll record not found" });
       return;
     }
 
     const emp = payroll.employee as any;
+    const month = payroll.month;
+    const year = payroll.year;
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
     res.setHeader("Content-Type", "application/pdf");
-    const filename = `payslip-${emp.employeeId || employeeId}-${MONTH_NAMES[month - 1].toLowerCase()}-${year}.pdf`;
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    const filename = `payslip-${emp.employeeId || id}-${MONTH_NAMES[month - 1].toLowerCase()}-${year}.pdf`;
+    res.setHeader("Content-Disposition", isPreview ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`);
     doc.pipe(res);
 
     const pageWidth = doc.page.width - 80;
