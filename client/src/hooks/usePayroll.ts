@@ -69,36 +69,36 @@ function sanitizeName(name: string): string {
 
 /**
  * Hook to download a specific payslip as a PDF file
+ * Uses the payroll record ID (not employee ID) to fetch the PDF directly.
  */
 export function useDownloadPayslip() {
   return useMutation<
     void,
     Error,
-    { employeeId: string; month: string; year: string; employeeName?: string; signal?: AbortSignal }
+    { payrollId: string; employeeName?: string; signal?: AbortSignal }
   >({
-    mutationFn: async ({ employeeId, month, year, employeeName, signal }) => {
-      const params = new URLSearchParams({ month, year });
+    mutationFn: async ({ payrollId, employeeName, signal }) => {
       const sanitized = employeeName ? sanitizeName(employeeName) : '';
       const filename = sanitized
-        ? `payslip-${sanitized}-${month.toLowerCase()}-${year}.pdf`
-        : `payslip-${month.toLowerCase()}-${year}.pdf`;
-      await downloadFile(`/payroll/${employeeId}/download?${params.toString()}`, filename, signal);
+        ? `payslip-${sanitized}.pdf`
+        : `payslip-${payrollId}.pdf`;
+      await downloadFile(`/api/payroll/${payrollId}/download`, filename, signal);
     },
   });
 }
 
 /**
  * Hook to preview a payslip PDF in a new browser tab
+ * Uses the payroll record ID and sets ?preview=true for inline Content-Disposition.
  */
 export function usePreviewPayslip() {
   return useMutation<
     string,
     Error,
-    { employeeId: string; month: string; year: string }
+    { payrollId: string }
   >({
-    mutationFn: async ({ employeeId, month, year }) => {
-      const params = new URLSearchParams({ month, year });
-      const url = await previewFile(`/payroll/${employeeId}/download?${params.toString()}`);
+    mutationFn: async ({ payrollId }) => {
+      const url = await previewFile(`/api/payroll/${payrollId}/download?preview=true`);
       return url;
     },
   });
@@ -125,7 +125,7 @@ export function useDownloadBatchPayslips() {
         ? sanitizeName(department)
         : 'all-departments';
       const filename = `payroll-${depSlug}-${month.toLowerCase()}-${year}.zip`;
-      await downloadBatchFile(`/payroll/download-batch?${params.toString()}`, filename);
+      await downloadBatchFile(`/api/payroll/download-batch?${params.toString()}`, filename);
     },
   });
 }

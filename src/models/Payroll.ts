@@ -55,7 +55,7 @@ const PayrollSchema = new Schema<IPayroll>(
     notes: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
 
 // Indexes

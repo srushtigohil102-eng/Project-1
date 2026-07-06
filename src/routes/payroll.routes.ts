@@ -39,9 +39,12 @@ router.get("/summary", requireManager, getPayrollSummary);
 
 // ========== BASIC CRUD ROUTES ==========
 router.get("/employee/:employeeId", getPayrollByEmployee);
-router.get("/:employeeId/download", downloadPayslip);
-router.get("/", requireManager, getAllPayrollRecords);
-router.get("/:id", requireManager, getPayrollById);
+router.get("/:id/download", downloadPayslip);
+router.get("/", getAllPayrollRecords);
+router.get("/download-batch", (_req, res) => {
+  res.status(404).json({ success: false, message: "Batch download not available yet. Download payslips individually." });
+});
+router.get("/:id", getPayrollById);
 
 // ========== POST/PUT/DELETE ROUTES ==========
 router.post("/generate", requireHR, generatePayroll);

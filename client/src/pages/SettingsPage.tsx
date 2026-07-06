@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import useAuth from '../hooks/useAuth';
-import { changePassword } from '../services/apiService';
+import { updateProfile, changePassword } from '../services/apiService';
 import { showSuccess, showError } from '../utils/toast';
 
 function getPasswordStrength(password: string): { label: string; color: string; width: string } {
@@ -41,7 +41,7 @@ function saveToggle(key: string, value: boolean): void {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   /* Section 1 — Profile */
   const [name, setName] = useState(user?.name ?? '');
@@ -53,6 +53,25 @@ export default function SettingsPage() {
       setEmail(user.email);
     }
   }, [user]);
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const handleSaveProfile = async () => {
+    if (!name.trim() || !email.trim()) {
+      showError('Name and email are required');
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      const result = await updateProfile(name.trim(), email.trim());
+      user && updateUser(result);
+      showSuccess('Profile updated successfully');
+    } catch (err) {
+      showError((err as Error).message);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   /* Section 2 — System toggles (persisted to localStorage) */
   const [emailNotifications, setEmailNotifications] = useState(() => loadToggle('emailNotifications', true));
@@ -158,6 +177,14 @@ export default function SettingsPage() {
               <p className="mt-0.5 text-sm font-semibold text-gray-900">{user?.id?.toUpperCase().slice(0, 12) ?? '—'}</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile}
+            className="mt-4 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {isSavingProfile ? 'Saving...' : 'Save Profile'}
+          </button>
         </div>
       </section>
 

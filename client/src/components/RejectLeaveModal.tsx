@@ -57,8 +57,9 @@ function RejectLeaveModal({ isOpen, onClose, leaveId, employeeName, leaveDates }
       await rejectMutation.mutateAsync({ id: leaveId, reason: reason.trim() });
       showSuccess('Leave rejected');
       handleClose();
-    } catch {
-      showError('Failed to reject leave');
+    } catch (err) {
+      console.error('[Reject]', err);
+      showError((err as Error).message || 'Failed to reject leave');
     }
   };
 

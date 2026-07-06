@@ -35,6 +35,8 @@ interface AuthContextValue {
   isHRManager: boolean;
   login: (newToken: string, newUser: UserType, rememberMe?: boolean) => void;
   logout: () => void;
+  /** Update stored user data (e.g. after profile edit) without changing token */
+  updateUser: (updatedUser: UserType) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -76,6 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigateTo('/');
   }, []);
 
+  const updateUser = useCallback((updatedUser: UserType): void => {
+    writeStoredAuth(token ?? '', updatedUser, !!token);
+    setUser(updatedUser);
+  }, [token]);
+
   const role = user?.role;
 
   const value = useMemo<AuthContextValue>(
@@ -90,8 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isHRManager: role === 'Admin' || role === 'HR',
       login,
       logout,
+      updateUser,
     }),
-    [token, user, login, logout],
+    [token, user, login, logout, updateUser],
   );
 
   return createElement(AuthContext.Provider, { value }, children);

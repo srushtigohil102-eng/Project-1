@@ -59,7 +59,8 @@ export function useApproveLeave() {
 
       return { previousLeaves };
     },
-    onError: (_err, _id, context) => {
+    onError: (err, _id, context) => {
+      console.error('[useApproveLeave] Error approving leave:', err);
       if (context?.previousLeaves) {
         queryClient.setQueryData(['leaves'], context.previousLeaves);
       }

@@ -78,6 +78,9 @@ export function useDeleteEmployee() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
+    onError: (err) => {
+      console.error('[useDeleteEmployee] Error deleting employee:', err);
+    },
   });
 }
 

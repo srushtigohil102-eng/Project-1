@@ -564,8 +564,9 @@ function LeavePage() {
                                     onSuccess: () => {
                                       showSuccess(`${leave.employee.fullName}'s leave approved`);
                                     },
-                                  onError: () => {
-                                    showError('Failed to approve leave');
+                                  onError: (err) => {
+                                    console.error('[Approve]', err);
+                                    showError(err.message || 'Failed to approve leave');
                                   },
                                 });
                               }}

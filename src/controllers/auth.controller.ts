@@ -168,6 +168,55 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
   }
 };
 
+export const updateProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email } = req.body;
+
+    if (!name && !email) {
+      res.status(400).json({ success: false, message: "At least one field (name or email) is required" });
+      return;
+    }
+
+    if (email) {
+      const existing = await Employee.findOne({ email: email.toLowerCase(), _id: { $ne: req.user?.id } });
+      if (existing) {
+        res.status(400).json({ success: false, message: "Email already in use" });
+        return;
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      updateData.firstName = parts[0] || "";
+      updateData.lastName = parts.slice(1).join(" ") || "";
+    }
+    if (email) {
+      updateData.email = email.toLowerCase();
+    }
+
+    const employee = await Employee.findByIdAndUpdate(req.user?.id, updateData, { new: true, runValidators: true });
+
+    if (!employee) {
+      res.status(404).json({ success: false, message: "Employee not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: employee._id.toString(),
+        name: `${employee.firstName} ${employee.lastName}`,
+        email: employee.email,
+        role: employee.role,
+      },
+      message: "Profile updated successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to update profile", error: (error as Error).message });
+  }
+};
+
 export const logout = async (_req: Request, res: Response): Promise<void> => {
   res.status(200).json({ success: true, message: "Logout successful. Please remove token from client." });
 };

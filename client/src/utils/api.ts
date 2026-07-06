@@ -59,10 +59,6 @@ async function apiFetch<T>(
     throw new Error('The requested item was not found.');
   }
 
-  if (response.status === 500) {
-    throw new Error('Server error. Please try again later.');
-  }
-
   if (!response.ok) {
     let message = 'Request failed';
     let errorBody: ApiErrorBody | undefined;
@@ -71,7 +67,9 @@ async function apiFetch<T>(
       errorBody = (await response.json()) as ApiErrorBody;
       message = errorBody.message ?? message;
     } catch {
-      // Response body was not JSON — keep default message.
+      if (response.status === 500) {
+        message = 'Server error. Please try again later.';
+      }
     }
 
     const error = new Error(message) as Error & { body?: unknown };
@@ -167,18 +165,13 @@ export async function downloadFile(
     throw new Error('The requested item was not found.');
   }
 
-  if (response.status === 500) {
-    showError('Server error. Please try again later.');
-    throw new Error('Server error. Please try again later.');
-  }
-
   if (!response.ok) {
     let message = 'Download failed';
     try {
       const errorBody = (await response.json()) as { message?: string };
       message = errorBody.message ?? message;
     } catch {
-      // keep default message
+      if (response.status === 500) message = 'Server error. Please try again later.';
     }
     showError(message);
     throw new Error(message);
@@ -300,18 +293,13 @@ export async function previewFile(
     throw new Error('The requested item was not found.');
   }
 
-  if (response.status === 500) {
-    showError('Server error. Please try again later.');
-    throw new Error('Server error. Please try again later.');
-  }
-
   if (!response.ok) {
     let message = 'Preview failed';
     try {
       const errorBody = (await response.json()) as { message?: string };
       message = errorBody.message ?? message;
     } catch {
-      // keep default message
+      if (response.status === 500) message = 'Server error. Please try again later.';
     }
     showError(message);
     throw new Error(message);

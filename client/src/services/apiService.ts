@@ -207,6 +207,7 @@ export async function createEmployee(
 export async function deleteEmployee(id: string): Promise<void> {
   return apiFetch<void>(`/api/employees/${id}`, {
     method: 'DELETE',
+    body: JSON.stringify({}),
   });
 }
 
@@ -251,6 +252,7 @@ export async function applyLeave(payload: ApplyLeaveData): Promise<LeaveRequest>
 export async function approveLeave(id: string): Promise<LeaveRequest> {
   const res = await apiFetch<ApiResponse<LeaveRequest>>(`/api/leaves/${id}/approve`, {
     method: 'PUT',
+    body: JSON.stringify({}),
   });
   return res.data;
 }
@@ -307,6 +309,14 @@ export async function getPayrollByEmployee(id: string): Promise<PayrollRecord[]>
   } else if (import.meta.env.DEV) {
     console.warn('[Payroll] getPayrollByEmployee: Expected res.data to be an array, got:', typeof res.data);
   }
+  return res.data;
+}
+
+export async function updateProfile(name: string, email: string): Promise<{ id: string; name: string; email: string; role: EmployeeRole }> {
+  const res = await apiFetch<ApiResponse<{ id: string; name: string; email: string; role: EmployeeRole }>>('/api/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ name, email }),
+  });
   return res.data;
 }
 
