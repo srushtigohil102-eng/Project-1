@@ -17,7 +17,8 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "seed": "ts-node src/seed/seed.ts"
+    "seed": "ts-node src/seed/seed.ts",
+    "verify-indexes": "ts-node src/scripts/verifyIndexes.ts"
   },
   "name": "hrms-payroll-automation",
   "version": "1.0.0",

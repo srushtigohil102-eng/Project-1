@@ -1,5 +1,8 @@
+import "dotenv/config";
 import cors from "cors";
 import express, { Request, Response } from "express";
+
+import connectDB from "./config/db";
 
 import authRoutes from "./routes/authRoutes";
 import employeeRoutes from "./routes/employeeRoutes";
@@ -8,6 +11,9 @@ import payrollRoutes from "./routes/payrollRoutes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
+
+// Connect to MongoDB
+connectDB();
 
 app.use(
   cors({
@@ -24,9 +30,12 @@ app.use("/leave", leaveRoutes);
 app.use("/payroll", payrollRoutes);
 
 app.get("/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    database: "connected",
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
