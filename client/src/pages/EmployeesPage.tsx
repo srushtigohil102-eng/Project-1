@@ -3,23 +3,17 @@ import Avatar from '../components/Avatar';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddEmployeeModal from '../components/AddEmployeeModal';
+import EditEmployeeModal from '../components/EditEmployeeModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 import useAuth from '../hooks/useAuth';
 import useEmployees, {
   useDeleteEmployee,
   type Employee,
 } from '../hooks/useEmployees';
 import { showSuccess, showError } from '../utils/toast';
+import { formatTimeAgo } from '../utils/helpers';
 
-const DEPARTMENT_OPTIONS = [
-  'All Departments',
-  'Engineering',
-  'Design',
-  'HR',
-  'Finance',
-  'Marketing',
-] as const;
-
-type DepartmentFilter = (typeof DEPARTMENT_OPTIONS)[number];
+type DepartmentFilter = string;
 type SortField = 'name' | 'salary' | 'status' | null;
 type SortOrder = 'asc' | 'desc';
 
@@ -57,6 +51,13 @@ function formatSalary(amount: number): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function mapStatus(status: string): 'active' | 'inactive' | 'pending' {
+  const lower = status.toLowerCase();
+  if (lower === 'active' || lower === 'on leave') return 'active';
+  if (lower === 'inactive') return 'inactive';
+  return 'pending';
 }
 
 function SearchIcon() {
@@ -118,23 +119,17 @@ function SearchInput({ value, onChange }: SearchInputProps) {
 interface DepartmentSelectProps {
   value: DepartmentFilter;
   onChange: (value: DepartmentFilter) => void;
+  options: string[];
 }
 
-function DepartmentSelect({ value, onChange }: DepartmentSelectProps) {
+function DepartmentSelect({ value, onChange, options }: DepartmentSelectProps) {
   return (
     <select
       value={value}
-      onChange={(e) => {
-        const nextValue = e.target.value;
-        if (
-          DEPARTMENT_OPTIONS.includes(nextValue as DepartmentFilter)
-        ) {
-          onChange(nextValue as DepartmentFilter);
-        }
-      }}
+      onChange={(e) => onChange(e.target.value)}
       className="w-full shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-52"
     >
-      {DEPARTMENT_OPTIONS.map((option) => (
+      {options.map((option) => (
         <option key={option} value={option}>
           {option}
         </option>
@@ -212,21 +207,22 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
 interface EmptyStateProps {
   isHRManager: boolean;
   onAddEmployee: () => void;
+  hasActiveFilters?: boolean;
 }
 
-function EmptyState({ isHRManager, onAddEmployee }: EmptyStateProps) {
+function EmptyState({ isHRManager, onAddEmployee, hasActiveFilters }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 text-4xl">
         👥
       </div>
       <h2 className="mt-6 text-lg font-semibold text-gray-900">
-        No employees found
+        {hasActiveFilters ? 'No results match your search' : 'No employees found'}
       </h2>
       <p className="mt-2 text-sm text-gray-500">
-        Try adjusting your search or filters
+        {hasActiveFilters ? 'Try clearing your search or filters.' : 'Try adjusting your search or filters'}
       </p>
-      {isHRManager && (
+      {!hasActiveFilters && isHRManager && (
         <button
           type="button"
           onClick={onAddEmployee}
@@ -276,23 +272,23 @@ function EmployeeRow({
       )}
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <Avatar name={employee.name} />
+          <Avatar name={employee.fullName} />
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => onViewDetails(employee)}
               className="truncate font-medium text-gray-900 hover:text-blue-600 hover:underline text-left focus:outline-none cursor-pointer"
             >
-              {employee.name}
+              {employee.fullName}
             </button>
             <p className="truncate text-sm text-gray-500">{employee.email}</p>
           </div>
         </div>
       </td>
-      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.department}>{employee.department}</td>
-      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.role}>{employee.role}</td>
+      <td className="max-w-[150px] truncate px-4 py-4 text-gray-700" title={employee.department.name}>{employee.department.name}</td>
+      <td className="max-w-32 truncate px-4 py-4 text-gray-700" title={employee.designation}>{employee.designation}</td>
       <td className="px-4 py-4">
-        <StatusBadge status={employee.status} />
+        <StatusBadge status={mapStatus(employee.status)} />
       </td>
       <td className="px-4 py-4 font-medium text-gray-900">
         {formatSalary(employee.salary)}
@@ -312,8 +308,9 @@ function EmployeeRow({
               type="button"
               onClick={() => onDelete(employee)}
               disabled={disableActions}
-              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
+              className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
             >
+              {isDeleting && <LoadingSpinner size="sm" className="text-white" />}
               {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
@@ -390,9 +387,26 @@ function PaginationBar({
   );
 }
 
+function LastUpdated({ dataUpdatedAt }: { dataUpdatedAt: number | undefined }) {
+  const [, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!dataUpdatedAt) return null;
+
+  return (
+    <p className="mt-3 text-right text-xs text-gray-400">
+      Last updated: {formatTimeAgo(new Date(dataUpdatedAt))}
+    </p>
+  );
+}
+
 function EmployeesPage() {
   const { isHRManager } = useAuth();
-  const { data: employees, isLoading, isError, error, refetch } =
+  const { data: employees, isLoading, isError, error, refetch, dataUpdatedAt } =
     useEmployees();
   const deleteMutation = useDeleteEmployee();
 
@@ -417,6 +431,10 @@ function EmployeesPage() {
   // Add employee modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Edit employee modal state
+  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   // Slide-in drawer details state
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -427,9 +445,16 @@ function EmployeesPage() {
     title: string;
     message: string;
     employeeId: string | null;
-  }>({ isOpen: false, title: '', message: '', employeeId: null });
+    employeeName: string;
+  }>({ isOpen: false, title: '', message: '', employeeId: null, employeeName: '' });
 
   const deletingIdRef = useRef<string | null>(null);
+
+  const departmentOptions = useMemo(() => {
+    if (!employees) return ['All Departments'];
+    const deps = new Set(employees.map((e) => e.department.name));
+    return ['All Departments', ...Array.from(deps).sort()];
+  }, [employees]);
 
   const hasActiveFilters =
     search.trim().length > 0 || department !== 'All Departments';
@@ -444,12 +469,12 @@ function EmployeesPage() {
     return employees.filter((employee) => {
       const matchesSearch =
         !query ||
-        employee.name.toLowerCase().includes(query) ||
+        employee.fullName.toLowerCase().includes(query) ||
         employee.email.toLowerCase().includes(query);
 
       const matchesDepartment =
         department === 'All Departments' ||
-        employee.department.toLowerCase() === department.toLowerCase();
+        employee.department.name.toLowerCase() === department.toLowerCase();
 
       return matchesSearch && matchesDepartment;
     });
@@ -464,20 +489,21 @@ function EmployeesPage() {
     }
 
     return [...filteredEmployees].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
+      let aValue: string | number;
+      let bValue: string | number;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
+      if (sortField === 'name') {
+        aValue = a.fullName.toLowerCase();
+        bValue = b.fullName.toLowerCase();
+      } else {
+        aValue = a[sortField];
+        bValue = b[sortField];
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
   }, [filteredEmployees, sortField, sortOrder]);
@@ -568,15 +594,17 @@ function EmployeesPage() {
   }, []);
 
   const handleEdit = useCallback((employee: Employee): void => {
-    showSuccess(`Edit employee: ${employee.name}`);
+    setEditEmployee(employee);
+    setIsEditModalOpen(true);
   }, []);
 
   const handleDelete = useCallback((employee: Employee): void => {
     setConfirmState({
       isOpen: true,
       title: 'Delete Employee',
-      message: `Are you sure you want to delete ${employee.name}? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${employee.fullName}? This action cannot be undone.`,
       employeeId: employee.id,
+      employeeName: employee.fullName,
     });
   }, []);
 
@@ -587,7 +615,7 @@ function EmployeesPage() {
     deletingIdRef.current = id;
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        showSuccess('Employee deleted successfully');
+        showSuccess(`${confirmState.employeeName} has been removed`);
         setConfirmState((prev) => ({ ...prev, isOpen: false }));
         deletingIdRef.current = null;
       },
@@ -597,7 +625,7 @@ function EmployeesPage() {
         deletingIdRef.current = null;
       },
     });
-  }, [confirmState.employeeId, deleteMutation]);
+  }, [confirmState.employeeId, confirmState.employeeName, deleteMutation]);
 
   const handleCancelDelete = useCallback((): void => {
     setConfirmState((prev) => ({ ...prev, isOpen: false }));
@@ -653,7 +681,7 @@ function EmployeesPage() {
       <div className="mb-6 flex flex-col gap-3">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <SearchInput value={search} onChange={handleSearchChange} />
-          <DepartmentSelect value={department} onChange={handleDepartmentChange} />
+          <DepartmentSelect value={department} onChange={handleDepartmentChange} options={departmentOptions} />
         </div>
 
         {hasActiveFilters && (
@@ -714,109 +742,205 @@ function EmployeesPage() {
         />
       ) : (
         <div className="overflow-hidden rounded-xl bg-white shadow-md">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
-                <tr>
-                  {isHRManager && (
-                    <th className="px-3 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleSelected && selectedEmployees.size > 0}
-                        onChange={handleSelectAll}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                    </th>
-                  )}
-                  <th
-                    onClick={() => handleSort('name')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Employee
-                      {sortField === 'name' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
+          {/* ===== MOBILE CARD VIEW (< sm) ===== */}
+          <div className="sm:hidden">
+            {isLoading ? (
+              <div className="divide-y divide-gray-100">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-32 rounded bg-gray-200" />
+                        <div className="h-3 w-44 rounded bg-gray-200" />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-3">
+                      <div className="h-3 w-20 rounded bg-gray-200" />
+                      <div className="h-3 w-24 rounded bg-gray-200" />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+                      <div className="h-5 w-20 rounded bg-gray-200" />
+                      {isHRManager && (
+                        <div className="flex gap-2">
+                          <div className="h-8 w-14 rounded bg-gray-200" />
+                          <div className="h-8 w-16 rounded bg-gray-200" />
+                        </div>
                       )}
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Department
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                    Role
-                  </th>
-                  <th
-                    onClick={() => handleSort('status')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Status
-                      {sortField === 'status' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
+                  </div>
+                ))}
+              </div>
+            ) : filteredEmployees.length === 0 ? (
+              <EmptyState isHRManager={isHRManager} onAddEmployee={handleAddEmployee} hasActiveFilters={hasActiveFilters} />
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {paginatedEmployees.map((employee) => (
+                  <div key={employee.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Avatar name={employee.fullName} />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails(employee)}
+                            className="truncate font-medium text-gray-900 hover:text-blue-600 text-left focus:outline-none cursor-pointer"
+                          >
+                            {employee.fullName}
+                          </button>
+                          <p className="truncate text-sm text-gray-500">{employee.email}</p>
+                        </div>
+                      </div>
+                      <StatusBadge status={mapStatus(employee.status)} />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                      <span>{employee.department.name}</span>
+                      <span className="text-gray-300">|</span>
+                      <span>{employee.designation}</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+                      <span className="text-lg font-bold text-gray-900">
+                        {formatSalary(employee.salary)}
+                      </span>
+                      {isHRManager && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(employee)}
+                            disabled={deleteMutation.isPending}
+                            className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-blue-400 cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(employee)}
+                            disabled={deleteMutation.isPending}
+                            className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-red-400 cursor-pointer"
+                          >
+                            {deleteMutation.isPending && deleteMutation.variables === employee.id && (
+                              <LoadingSpinner size="sm" className="text-white" />
+                            )}
+                            {deleteMutation.isPending && deleteMutation.variables === employee.id
+                              ? 'Deleting...'
+                              : 'Delete'}
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('salary')}
-                    className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      Salary
-                      {sortField === 'salary' && (
-                        <span className="text-sm font-bold text-gray-500">
-                          {sortOrder === 'asc' ? ' ↑' : ' ↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  {isHRManager && (
-                    <th className="px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading &&
-                  Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                    <SkeletonRow key={index} showActions={isHRManager} />
-                  ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                {!isLoading && filteredEmployees.length === 0 && (
+          {/* ===== DESKTOP TABLE VIEW (sm+) ===== */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100">
                   <tr>
-                    <td colSpan={columnCount}>
-                      <EmptyState
-                        isHRManager={isHRManager}
-                        onAddEmployee={handleAddEmployee}
-                      />
-                    </td>
+                    {isHRManager && (
+                      <th className="px-3 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected && selectedEmployees.size > 0}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
+                    <th
+                      onClick={() => handleSort('name')}
+                      className="min-w-[200px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Employee
+                        {sortField === 'name' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th className="min-w-[150px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                      Department
+                    </th>
+                    <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                      Designation
+                    </th>
+                    <th
+                      onClick={() => handleSort('status')}
+                      className="min-w-[100px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortField === 'status' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('salary')}
+                      className="min-w-[120px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Salary
+                        {sortField === 'salary' && (
+                          <span className="text-sm font-bold text-gray-500">
+                            {sortOrder === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                    {isHRManager && (
+                      <th className="min-w-[140px] px-4 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">
+                        Actions
+                      </th>
+                    )}
                   </tr>
-                )}
+                </thead>
+                <tbody>
+                  {isLoading &&
+                    Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                      <SkeletonRow key={index} showActions={isHRManager} />
+                    ))}
 
-                {!isLoading &&
-                  paginatedEmployees.map((employee) => (
-                    <EmployeeRow
-                      key={employee.id}
-                      employee={employee}
-                      isHRManager={isHRManager}
-                      isSelected={selectedEmployees.has(employee.id)}
-                      onSelect={handleSelectOne}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onViewDetails={handleViewDetails}
-                      isDeleting={
-                        deleteMutation.isPending &&
-                        deleteMutation.variables === employee.id
-                      }
-                      disableActions={deleteMutation.isPending}
-                    />
-                  ))}
-              </tbody>
-            </table>
+                  {!isLoading && filteredEmployees.length === 0 && (
+                    <tr>
+                      <td colSpan={columnCount}>
+                        <EmptyState
+                          isHRManager={isHRManager}
+                          onAddEmployee={handleAddEmployee}
+                          hasActiveFilters={hasActiveFilters}
+                        />
+                      </td>
+                    </tr>
+                  )}
+
+                  {!isLoading &&
+                    paginatedEmployees.map((employee) => (
+                      <EmployeeRow
+                        key={employee.id}
+                        employee={employee}
+                        isHRManager={isHRManager}
+                        isSelected={selectedEmployees.has(employee.id)}
+                        onSelect={handleSelectOne}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onViewDetails={handleViewDetails}
+                        isDeleting={
+                          deleteMutation.isPending &&
+                          deleteMutation.variables === employee.id
+                        }
+                        disableActions={deleteMutation.isPending}
+                      />
+                    ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {!isLoading && totalCount > 0 && (
@@ -828,6 +952,7 @@ function EmployeesPage() {
               onPageChange={setCurrentPage}
             />
           )}
+          <LastUpdated dataUpdatedAt={dataUpdatedAt} />
         </div>
       )}
 
@@ -859,6 +984,19 @@ function EmployeesPage() {
       <AddEmployeeModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          void refetch();
+        }}
+      />
+
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={isEditModalOpen}
+        employee={editEmployee}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditEmployee(null);
+        }}
         onSuccess={() => {
           void refetch();
         }}
@@ -911,23 +1049,20 @@ function EmployeesPage() {
               {/* Detail Content */}
               <div className="flex-1 overflow-y-auto py-6">
                 <div className="flex flex-col items-center text-center mb-8">
-                  {/* Large Custom Initials Avatar */}
                   <div className="flex h-24 w-24 items-center justify-center rounded-full text-3xl font-bold bg-blue-600 text-white shadow-md border-4 border-white ring-4 ring-blue-100">
-                    {selectedEmployee.name
-                      ? selectedEmployee.name
-                          .trim()
-                          .split(/\s+/)
-                          .slice(0, 2)
-                          .map((w) => w[0].toUpperCase())
-                          .join('')
-                      : '?'}
+                    {selectedEmployee.fullName
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((w) => w[0].toUpperCase())
+                      .join('')}
                   </div>
                   <h3 className="mt-4 text-xl font-semibold text-gray-900">
-                    {selectedEmployee.name}
+                    {selectedEmployee.fullName}
                   </h3>
-                  <p className="text-sm text-gray-500">{selectedEmployee.role}</p>
+                  <p className="text-sm text-gray-500">{selectedEmployee.designation}</p>
                   <div className="mt-3">
-                    <StatusBadge status={selectedEmployee.status} />
+                    <StatusBadge status={mapStatus(selectedEmployee.status)} />
                   </div>
                 </div>
 
@@ -946,16 +1081,16 @@ function EmployeesPage() {
                       Department
                     </span>
                     <span className="mt-1 block text-sm font-medium text-gray-900">
-                      {selectedEmployee.department}
+                      {selectedEmployee.department.name}
                     </span>
                   </div>
 
                   <div>
                     <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                      Role Title
+                      Designation
                     </span>
                     <span className="mt-1 block text-sm font-medium text-gray-900">
-                      {selectedEmployee.role}
+                      {selectedEmployee.designation}
                     </span>
                   </div>
 
@@ -991,7 +1126,7 @@ function EmployeesPage() {
                   type="button"
                   onClick={() => {
                     showSuccess(
-                      `Edit feature coming soon for ${selectedEmployee.name}`,
+                      `Edit feature coming soon for ${selectedEmployee.fullName}`,
                     );
                   }}
                   className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"

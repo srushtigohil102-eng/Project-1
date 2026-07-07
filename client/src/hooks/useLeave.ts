@@ -53,13 +53,14 @@ export function useApproveLeave() {
 
       queryClient.setQueryData<LeaveRequest[]>(['leaves'], (old) =>
         old?.map((leave) =>
-          leave.id === id ? { ...leave, status: 'approved' as const } : leave,
+          leave.id === id ? { ...leave, status: 'Approved' as const } : leave,
         ),
       );
 
       return { previousLeaves };
     },
-    onError: (_err, _id, context) => {
+    onError: (err, _id, context) => {
+      console.error('[useApproveLeave] Error approving leave:', err);
       if (context?.previousLeaves) {
         queryClient.setQueryData(['leaves'], context.previousLeaves);
       }

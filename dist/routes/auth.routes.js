@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { login, register, getCurrentUser, changePassword, logout } from '../controllers/auth.controller';
+import { verifyTokenMiddleware } from '../middleware/auth.middleware';
+import { requireHR } from '../middleware/role.middleware';
+const router = Router();
+router.post('/login', login);
+router.post('/logout', logout);
+router.get('/me', verifyTokenMiddleware, getCurrentUser);
+router.post('/change-password', verifyTokenMiddleware, changePassword);
+router.post('/register', verifyTokenMiddleware, requireHR, register);
+export default router;

@@ -60,7 +60,7 @@ function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs" onClick={onCancel} />
-      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[380px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
+      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
         <div className="flex flex-col items-center text-center">
           <div className={`flex items-center justify-center w-12 h-12 rounded-full ${colors.iconBg} mb-4`}>
             {confirmColor === 'red' ? (

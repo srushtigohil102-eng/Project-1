@@ -16,19 +16,30 @@ function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 text-center">
-      <p className="text-8xl font-bold text-gray-300">404</p>
-      <h1 className="mt-4 text-2xl font-bold text-gray-900">Page not found</h1>
-      <p className="mt-2 text-sm text-gray-500">
-        The page you are looking for does not exist.
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
+      <p className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-8xl font-bold text-transparent">
+        404
       </p>
-      <button
-        type="button"
-        onClick={() => navigate('/dashboard')}
-        className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-      >
-        Back to Dashboard
-      </button>
+      <h1 className="mt-4 text-2xl font-semibold text-gray-800">Page not found</h1>
+      <p className="mt-2 text-center text-gray-500">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <div className="mt-6 flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => navigate('/dashboard')}
+          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+        >
+          Go to Dashboard
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-700"
+        >
+          Go to Login
+        </button>
+      </div>
     </div>
   );
 }
@@ -124,7 +135,7 @@ function App() {
         <Route
           path="/employees"
           element={
-            <ProtectedRoute requiredRole="hr_manager">
+            <ProtectedRoute allowedRoles={['Admin', 'HR']}>
               <Layout>
                 <EmployeesPage />
               </Layout>
@@ -144,7 +155,7 @@ function App() {
         <Route
           path="/payroll"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Admin', 'HR', 'Employee']}>
               <Layout>
                 <PayrollPage />
               </Layout>
@@ -154,7 +165,7 @@ function App() {
         <Route
           path="/reports"
           element={
-            <ProtectedRoute requiredRole="hr_manager">
+            <ProtectedRoute allowedRoles={['Admin', 'HR', 'Manager']}>
               <Layout>
                 <ReportsPage />
               </Layout>
@@ -164,7 +175,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute requiredRole="hr_manager">
+            <ProtectedRoute>
               <Layout>
                 <SettingsPage />
               </Layout>

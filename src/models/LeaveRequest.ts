@@ -102,6 +102,8 @@ const LeaveRequestSchema = new Schema<ILeaveRequest>(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 

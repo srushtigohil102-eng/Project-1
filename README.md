@@ -1,19 +1,19 @@
 # Project-1
 
 <!-- Member C: Frontend Lead — workspace initialized -->
->>>>>>> a561cb790909236c5d38b2155970eb00c093818c
+
 # HRMS — Human Resource Management System
 
 > Enterprise HR and Payroll Automation Dashboard  
 > Infotact Solutions SDE Internship — Project 3
 
-`[CI: Passing]` `[License: MIT]` `[Status: Week 3 Complete]`
+`[CI: Passing]` `[License: MIT]` `[Status: Week 4 Complete]`
 
 ---
 
 ## What Is This
 
-A full-stack enterprise dashboard for managing employees, leave requests, payroll, and reporting with role-based access control for HR Managers and Employees. Built over 4 weeks by a team of 4 interns using React 19, Node.js, and MongoDB.
+A full-stack enterprise dashboard for managing employees, leave requests, payroll, reporting, and system settings with role-based access control for HR Managers and Employees. Built over 4 weeks by a team of 4 interns using React 19, Node.js, and MongoDB. Containerized with Docker for production deployment.
 
 ---
 
@@ -33,21 +33,20 @@ A full-stack enterprise dashboard for managing employees, leave requests, payrol
 
 ## Team
 
-<<<<<<< HEAD
 | Member | Role | Focus Area | Branch |
 |--------|------|------------|--------|
 | Member A | Backend Lead | Express API, authentication, middleware | `Karthika` |
 | Member B | Database & PDF | Mongoose schemas, aggregations, PDF generation | `Himanshi` |
 | Member C | **Frontend Lead + Team Lead** | React components, routing, state, UI/UX | `Srushti` |
 | Member D | DevOps Lead | CI/CD pipeline, Docker, deployment | `Anoop` |
-=======
+
 | Member | Role | Branch |
 |--------|------|--------|
 | Member A | Backend Lead | Karthika |
 | Member B | Database and PDF | Himanshi |
 | Member C | Frontend Lead | Srushti |
 | Member D | DevOps Lead | Anoop |
->>>>>>> a561cb790909236c5d38b2155970eb00c093818c
+
 
 ---
 
@@ -85,8 +84,8 @@ Project-1/
 │   │   │   ├── EmployeesPage.tsx         # Employee table with CRUD
 │   │   │   ├── LeavePage.tsx            # Leave management
 │   │   │   ├── PayrollPage.tsx          # Payroll + payslip download
-│   │   │   ├── ReportsPage.tsx          # Placeholder — Week 3
-│   │   │   └── SettingsPage.tsx         # Placeholder — Week 3
+│   │   │   ├── ReportsPage.tsx          # Analytics dashboard (headcount, leaves, payroll)
+│   │   │   └── SettingsPage.tsx         # Profile, system config, security, danger zone
 │   │   ├── services/
 │   │   │   └── apiService.ts            # API functions + _id mapping
 │   │   ├── utils/
@@ -108,6 +107,9 @@ Project-1/
 │   ├── vite.config.ts
 │   └── tsconfig*.json
 │
+├── Dockerfile                           # Backend multi-stage Docker build
+├── .dockerignore                        # Backend build context exclusions
+├── docker-compose.yml                   # Full-stack orchestration (mongo + backend + frontend)
 ├── server/                              # Node.js Express backend
 │   ├── src/
 │   │   ├── controllers/
@@ -131,6 +133,9 @@ Project-1/
 │   │   ├── data/
 │   │   │   └── seed.ts                  # Seed script
 │   │   └── server.ts                    # Entry point
+│   ├── Dockerfile                        # Nginx-based production server
+│   ├── nginx.conf                        # SPA routing + /api proxy
+│   ├── .dockerignore
 │   ├── .env.example
 │   ├── package.json
 │   └── tsconfig.json
@@ -170,7 +175,19 @@ cp .env.example .env
 npm run dev        # Starts on http://localhost:5173
 ```
 
-### Run Both Together
+### Run with Docker
+
+```bash
+# From the Project-1 root directory
+docker-compose up --build
+```
+
+This starts three services:
+- **MongoDB** on port 27017
+- **Backend** on port 5000
+- **Frontend** on port 80 (nginx)
+
+### Run Both Together (Dev Mode)
 
 | Service | URL |
 |---------|-----|
@@ -206,8 +223,9 @@ After running `npm run seed`:
 
 | Role | Email | Password |
 |------|-------|----------|
-| **HR Manager** | hr@company.com | Hrms@Dev2026! |
-| **Employee** | employee@company.com | Hrms@Dev2026! |
+| **Admin** | admin@hrms.com | Admin@123456 |
+| **HR Manager** | hr@hrms.com | Hr@123456 |
+| **Employee** | employee@hrms.com | Employee@123456 |
 
 ### Demo Mode
 
@@ -382,6 +400,16 @@ When the API is offline, the login page shows demo buttons that log in with pre-
 
 ---
 
+### Security & Middleware
+
+| Feature | Status |
+|---------|--------|
+| Helmet security headers (14 headers) | ✅ Done |
+| General rate limiting (100 req/15 min) | ✅ Done |
+| Auth rate limiting (10 req/15 min) | ✅ Done |
+| Global error handler (hides stack in production) | ✅ Done |
+| Zod input validation for employee routes | ✅ Done |
+
 ### DevOps & Deployment
 
 | Feature | Status |
@@ -389,12 +417,21 @@ When the API is offline, the login page shows demo buttons that log in with pre-
 | Backend Dockerfile (multi-stage build) | ✅ Done |
 | Frontend Dockerfile (Vite + nginx) | ✅ Done |
 | docker-compose.yml for full-stack setup | ✅ Done |
+| .dockerignore files for both services | ✅ Done |
+
+### Reports & Settings
+
+| Feature | Status |
+|---------|--------|
+| Reports page with headcount, leave analytics, payroll summary | ✅ Done |
+| Settings page with profile, system config, security, danger zone | ✅ Done |
 
 ### Documentation
 
 | Feature | Status |
 |---------|--------|
 | Work Distribution Document created and submitted | ✅ Done |
+| Updated README with Week 4 deliverables | ✅ Done |
 
 ---
 
@@ -404,36 +441,35 @@ The app enforces RBAC at **three levels** — not just conditional button hiding
 
 ### Level 1 — Route Protection
 
-| Route | HR Manager | Employee |
-|-------|:----------:|:--------:|
-| `/dashboard` | ✅ | ✅ |
-| `/employees` | ✅ | ❌ Access Denied |
-| `/leave` | ✅ | ✅ |
-| `/payroll` | ✅ | ✅ |
-| `/reports` | ✅ | ❌ Access Denied |
-| `/settings` | ✅ | ❌ Access Denied |
+| Route | Admin | HR | Manager | Employee |
+|-------|:-----:|:--:|:-------:|:--------:|
+| `/dashboard` | ✅ | ✅ | ✅ | ✅ |
+| `/employees` | ✅ | ✅ | ❌ | ❌ |
+| `/leave` | ✅ | ✅ | ✅ | ✅ |
+| `/payroll` | ✅ | ✅ | ✅ | ✅ |
+| `/reports` | ✅ | ✅ | ✅ | ❌ |
+| `/settings` | ✅ | ❌ | ❌ | ❌ |
 
 ### Level 2 — Data Filtering
 
-| Component | HR Manager | Employee |
-|-----------|-----------|----------|
-| Dashboard stats | Company-wide totals | Personal stats only |
-| Dashboard activity | Everyone's activity | Own activity (`employeeId === user.id`) |
-| Leave table | All employees' requests | Own requests only |
-| Payroll table | All employees' records | Own records only |
-| Sidebar badge | All pending leaves | Own pending leaves |
-| Dashboard greeting | Pending leave count | Generic message |
+| Component | Admin/HR | Manager | Employee |
+|-----------|----------|---------|----------|
+| Dashboard stats | Company-wide totals | Own + team | Personal stats only |
+| Dashboard activity | Everyone's activity | Team activity | Own activity |
+| Leave table | All employees' requests | All employees' requests | Own requests only |
+| Payroll table | All employees' records | All employees' records | Own records only |
+| Sidebar badge | All pending leaves | All pending leaves | Own pending leaves |
 
 ### Level 3 — Action Visibility
 
-| Action | HR Manager | Employee |
-|--------|:----------:|:--------:|
-| Add / Edit / Delete employees | ✅ | ❌ |
-| Bulk select / delete employees | ✅ | ❌ |
-| Approve / Reject leaves | ✅ | ❌ |
-| Apply for leave | ✅ | ✅ |
-| Run payroll | ✅ | ❌ |
-| Download payslip | ✅ | ✅ |
+| Action | Admin/HR | Manager | Employee |
+|--------|:--------:|:-------:|:--------:|
+| Add / Edit / Delete employees | ✅ | ❌ | ❌ |
+| Bulk select / delete employees | ✅ | ❌ | ❌ |
+| Approve / Reject leaves | ✅ | ✅ | ❌ |
+| Apply for leave | ✅ | ✅ | ✅ |
+| Run payroll | ✅ | ✅ | ❌ |
+| Download payslip | ✅ | ✅ | ✅ |
 
 ---
 
@@ -474,6 +510,22 @@ Multi-stage Dockerfiles for both backend (Node.js) and frontend (Vite + nginx) w
 
 ---
 
+## Week 4 Highlights
+
+### 1. Containerization Complete
+Full Docker setup with multi-stage builds, .dockerignore files, and docker-compose orchestration. Backend uses `node:20-alpine` builder -> production image. Frontend serves via nginx:alpine with SPA routing and `/api` proxy. MongoDB runs as a separate service in the compose stack.
+
+### 2. Security Hardening
+Implemented Helmet (14 security headers), dual rate limiters (general 100 req/15 min, auth-specific 10 req/15 min), global error handler with production stack trace suppression, and Zod input validation for employee create/update routes. Fixed JWT expiry env variable naming issue.
+
+### 3. Code Quality & Developer Experience
+Guarded all 8 `console.warn` calls in production code behind `import.meta.env.DEV`. Verified TypeScript compiles with zero errors (`npx tsc --noEmit`). Confirmed all mutations properly invalidate queries. No `dangerouslySetInnerHTML` usage found.
+
+### 4. Reports & Settings Pages
+Built a full analytics Reports page with three sections: headcount overview (department breakdown table), leave analytics (type breakdown + metric cards), and payroll summary (₹ format + export buttons) — all computed from existing React Query hooks, no new API calls. Built a Settings page with My Profile, System Configuration (toggle switches), Security (password form + strength indicator + active sessions table), and Danger Zone with confirm dialog.
+
+---
+
 ## Week-by-Week Progress
 
 | Week | Dates | Status | Key Deliverables |
@@ -481,7 +533,7 @@ Multi-stage Dockerfiles for both backend (Node.js) and frontend (Vite + nginx) w
 | **Week 1** | 5th – 11th | ✅ Complete | JWT auth, RBAC, employee table, React Query, sidebar layout |
 | **Week 2** | 12th – 18th | ✅ Complete | Leave lifecycle, multi-step onboarding, payroll + PDF, dashboard with live data, bulk actions, optimistic updates, RBAC audit fixes |
 | **Week 3** | 19th – 25th | ✅ Complete | Real backend integration, PDF payslip generation, Docker containerization, UI polish, batch payslip download, work distribution document |
-| **Week 4** | 26th – 2nd | ⏳ Upcoming | Full mobile responsive redesign, advanced reporting and analytics, production cloud deployment, final presentation |
+| **Week 4** | 26th – 3rd | ✅ Complete | Docker containerization, security hardening (Helmet, rate limiting, Zod validation), code quality pass, Reports & Settings pages, final polish and presentation |
 
 ---
 
@@ -509,14 +561,12 @@ Types: feat, fix, refactor, chore, docs, style, test
 
 ## Known Limitations
 
-- **No server-side pagination** — Employee and leave tables paginate client-side. With 500+ records, performance will degrade. Planned for Week 4.
-- **No automated tests** — Unit and integration tests are planned for Week 4.
+- **No server-side pagination** — Employee and leave tables paginate client-side. With 500+ records, performance will degrade.
+- **No automated tests** — Unit and integration tests not yet implemented.
 - **Email notifications** — Leave approval/rejection and payslip delivery via email not yet implemented.
 - **Accessibility** — Keyboard navigation and screen reader support need a final audit pass.
 - **Export to CSV/Excel** — The export button on the Employees page is a placeholder.
-- **Console.log in api.ts** — Three dev-only `console.log` calls remain; they execute only when `import.meta.env.DEV` is `true`.
 - **Full mobile responsive redesign** — Sidebar navigation and table layouts need mobile-friendly rework.
-- **Advanced reporting and analytics page** — Reports page is still a placeholder awaiting implementation.
 - **Production deployment to cloud service** — Not yet deployed to any cloud hosting provider.
 
 ---
@@ -526,7 +576,7 @@ Types: feat, fix, refactor, chore, docs, style, test
 | Event | Date | Status |
 |-------|------|--------|
 | Mid Review | 20th – 27th June | ✅ Completed |
-| Final Review | 5th – 10th July | ⏳ Upcoming |
+| Final Review | 5th – 10th July | ✅ Completed |
 
 ---
 

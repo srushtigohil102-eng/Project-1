@@ -33,9 +33,9 @@ This document outlines the work distribution across the four-member team buildin
 | Member | Role | Branch | Focus Area |
 |--------|------|--------|------------|
 | **Member A — Karthika** | Backend Lead | `Karthika` | Express API, JWT authentication, RBAC middleware, payroll endpoints |
-| **Member B** | Database & PDF Lead | `member-B` | Mongoose schemas, aggregation pipelines, PDF payslip generation, seed data |
+| **Member B-Himanshi ** | Database & PDF Lead | `Himanshi` | Mongoose schemas, aggregation pipelines, PDF payslip generation, seed data |
 | **Member C — Srushti** | **Frontend Lead + Team Lead** | `Srushti` | React components, routing, state management, UI/UX, CI pipeline, project management |
-| **Member D** | DevOps Lead | `member-D` | Docker containerization, CI/CD, integration testing, MongoDB Atlas |
+| **Member D-Anoop** | DevOps Lead | `Anoop` | Docker containerization, CI/CD, integration testing, MongoDB Atlas |
 
 ---
 
@@ -73,7 +73,7 @@ This document outlines the work distribution across the four-member team buildin
 
 ---
 
-### Member B (Database & PDF Lead)
+### Member B - Himanshi (Database & PDF Lead)
 
 #### Week 1 (5th – 11th June)
 
@@ -160,7 +160,7 @@ This document outlines the work distribution across the four-member team buildin
 
 ---
 
-### Member D (DevOps Lead)
+### Member D - Anoop (DevOps Lead)
 
 #### Week 1 (5th – 11th June)
 
@@ -204,10 +204,10 @@ This document outlines the work distribution across the four-member team buildin
 | Branch | Member | Purpose |
 |--------|--------|---------|
 | `main` | — | Production-ready merged code, reviewed by Team Lead |
-| `Srushti` | Member C — Srushti (Frontend + Team Lead) | All frontend development and project management |
-| `Karthika` | Member A — Karthika (Backend Lead) | All backend API and middleware development |
-| `member-B` | Member B (Database & PDF Lead) | All database schema and PDF generation work |
-| `member-D` | Member D (DevOps Lead) | All Docker, CI/CD, and testing work |
+| `Srushti` | Member C (Frontend + Team Lead) | All frontend development and project management |
+| `Karthika` | Member A (Backend Lead) | All backend API and middleware development |
+| `Himanshi` | Member B (Database & PDF Lead) | All database schema and PDF generation work |
+| `Anoop` | Member D (DevOps Lead) | All Docker, CI/CD, and testing work |
 
 ### Pull Requests
 
@@ -224,9 +224,9 @@ This document outlines the work distribution across the four-member team buildin
 | Member | Week 4 Tasks |
 |--------|--------------|
 | **Member A — Karthika** | API pagination support, email notification endpoint for payslip delivery, final security review |
-| **Member B** | Email attachment integration for payslip PDFs, performance optimization on aggregation pipelines, accessibility improvements |
+| **Member B - Himanshi** | Email attachment integration for payslip PDFs, performance optimization on aggregation pipelines, accessibility improvements |
 | **Member C — Srushti** | Full mobile responsive redesign (sidebar collapse, responsive tables), advanced reporting and analytics page, production build optimization, final presentation preparation |
-| **Member D** | Production cloud deployment (AWS/Azure/GCP), CI/CD deployment pipeline, SSL certificate setup, final integration test suite |
+| **Member D - Anoop** | Production cloud deployment (AWS/Azure/GCP), CI/CD deployment pipeline, SSL certificate setup, final integration test suite |
 
 ---
 
@@ -236,9 +236,7 @@ I, Srushti, as Team Lead confirm that the above work distribution accurately ref
 
 ---
 
-**Signature:** ____________________________
-
-**Name:** Srushti
+**Name:** Srushti Gohil
 
 **Role:** Frontend Lead + Team Lead
 

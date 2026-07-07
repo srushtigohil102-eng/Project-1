@@ -18,6 +18,10 @@ export const verifyTokenMiddleware = async (
   try {
     const authHeader = req.headers.authorization;
     
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Auth] ${req.method} ${req.path} - ${authHeader ? 'has Authorization' : 'missing Authorization'}`);
+    }
+    
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({ success: false, message: "Access denied. No token provided." });
       return;

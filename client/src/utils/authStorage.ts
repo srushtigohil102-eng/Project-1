@@ -1,16 +1,20 @@
+import type { EmployeeRole } from '../services/apiService';
+
 export interface UserType {
   id: string;
   name: string;
   email: string;
-  role: 'employee' | 'hr_manager';
+  role: EmployeeRole;
 }
 
 export const TOKEN_KEY = 'hrms_token';
 export const USER_KEY = 'hrms_user';
 export const REMEMBER_KEY = 'hrms_remember';
 
-function isUserRole(role: unknown): role is UserType['role'] {
-  return role === 'employee' || role === 'hr_manager';
+const VALID_ROLES: readonly EmployeeRole[] = ['Admin', 'HR', 'Manager', 'Employee'];
+
+function isUserRole(role: unknown): role is EmployeeRole {
+  return VALID_ROLES.includes(role as EmployeeRole);
 }
 
 function isUserType(value: unknown): value is UserType {

@@ -37,7 +37,7 @@ async function apiFetch<T>(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    throw new Error('Cannot connect to server. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -46,21 +46,17 @@ async function apiFetch<T>(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    throw new Error('You do not have permission to perform this action');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    throw new Error('The requested resource was not found');
-  }
-
-  if (response.status === 500) {
-    throw new Error('Server error. Please try again later.');
+    throw new Error('The requested item was not found.');
   }
 
   if (!response.ok) {
@@ -71,7 +67,9 @@ async function apiFetch<T>(
       errorBody = (await response.json()) as ApiErrorBody;
       message = errorBody.message ?? message;
     } catch {
-      // Response body was not JSON — keep default message.
+      if (response.status === 500) {
+        message = 'Server error. Please try again later.';
+      }
     }
 
     const error = new Error(message) as Error & { body?: unknown };
@@ -142,8 +140,8 @@ export async function downloadFile(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    showError('Cannot connect to server. Check your connection.');
-    throw new Error('Cannot connect to server. Check your connection.');
+    showError('Cannot connect. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -152,24 +150,19 @@ export async function downloadFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    showError('You do not have permission to perform this action');
-    throw new Error('You do not have permission to perform this action');
+    showError('You do not have permission to do this.');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    showError('The requested resource was not found');
-    throw new Error('The requested resource was not found');
-  }
-
-  if (response.status === 500) {
-    showError('Server error. Please try again later.');
-    throw new Error('Server error. Please try again later.');
+    showError('The requested item was not found.');
+    throw new Error('The requested item was not found.');
   }
 
   if (!response.ok) {
@@ -178,7 +171,7 @@ export async function downloadFile(
       const errorBody = (await response.json()) as { message?: string };
       message = errorBody.message ?? message;
     } catch {
-      // keep default message
+      if (response.status === 500) message = 'Server error. Please try again later.';
     }
     showError(message);
     throw new Error(message);
@@ -206,10 +199,12 @@ export async function downloadFile(
   }
 
   if (!contentType.includes('application/pdf') && !contentType.includes('application/octet-stream')) {
-    console.warn(
-      `[API] Unexpected Content-Type "${contentType}" for download at ${path}. ` +
-      'Expected application/pdf. The downloaded file may be corrupt.',
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[API] Unexpected Content-Type "${contentType}" for download at ${path}. ` +
+        'Expected application/pdf. The downloaded file may be corrupt.',
+      );
+    }
   }
 
   const blob = await response.blob();
@@ -273,8 +268,8 @@ export async function previewFile(
     if (import.meta.env.DEV) {
       console.error(`[API] Network error for ${method} ${path}`);
     }
-    showError('Cannot connect to server. Check your connection.');
-    throw new Error('Cannot connect to server. Check your connection.');
+    showError('Cannot connect. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -283,24 +278,19 @@ export async function previewFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    showError('You do not have permission to perform this action');
-    throw new Error('You do not have permission to perform this action');
+    showError('You do not have permission to do this.');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (response.status === 404) {
-    showError('The requested resource was not found');
-    throw new Error('The requested resource was not found');
-  }
-
-  if (response.status === 500) {
-    showError('Server error. Please try again later.');
-    throw new Error('Server error. Please try again later.');
+    showError('The requested item was not found.');
+    throw new Error('The requested item was not found.');
   }
 
   if (!response.ok) {
@@ -309,7 +299,7 @@ export async function previewFile(
       const errorBody = (await response.json()) as { message?: string };
       message = errorBody.message ?? message;
     } catch {
-      // keep default message
+      if (response.status === 500) message = 'Server error. Please try again later.';
     }
     showError(message);
     throw new Error(message);
@@ -382,7 +372,7 @@ export async function downloadBatchFile(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new Error('Cannot connect to server. Check your connection.');
+    throw new Error('Cannot connect. Check your connection.');
   }
 
   if (import.meta.env.DEV) {
@@ -395,13 +385,13 @@ export async function downloadBatchFile(
 
   if (response.status === 401) {
     clearStoredAuth();
-    showError('Session expired. Please login again.');
+    showError('Your session has expired. Please login again.');
     setTimeout(() => navigateTo('/'), 1500);
-    throw new Error('Session expired. Please login again.');
+    throw new Error('Your session has expired. Please login again.');
   }
 
   if (response.status === 403) {
-    throw new Error('You do not have permission to perform this action');
+    throw new Error('You do not have permission to do this.');
   }
 
   if (!response.ok) {

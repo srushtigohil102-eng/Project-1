@@ -7,19 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/auth': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/employees': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/leave': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/payroll': {
+      '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
       },

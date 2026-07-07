@@ -211,8 +211,6 @@ const EmployeeSchema = new Schema<IEmployee>(
 );
 
 // Indexes
-EmployeeSchema.index({ employeeId: 1 });
-EmployeeSchema.index({ email: 1 });
 EmployeeSchema.index({ department: 1 });
 EmployeeSchema.index({ role: 1 });
 EmployeeSchema.index({ status: 1 });

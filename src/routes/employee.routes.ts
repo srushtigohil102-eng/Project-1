@@ -9,6 +9,7 @@ import {
 } from "../controllers/employee.controller";
 import { verifyTokenMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin, requireHR, requireManager } from "../middleware/role.middleware";
+import { validate, createEmployeeSchema, updateEmployeeSchema } from "../validators/employee.validator";
 
 const router = Router();
 
@@ -21,8 +22,8 @@ router.get("/:id", requireManager, getEmployeeById);
 router.get("/department/:departmentId", requireManager, getEmployeesByDepartment);
 
 // Admin/HR only
-router.post("/", requireHR, createEmployee);
-router.put("/:id", requireHR, updateEmployee);
+router.post("/", requireHR, validate(createEmployeeSchema), createEmployee);
+router.put("/:id", requireHR, validate(updateEmployeeSchema), updateEmployee);
 router.delete("/:id", requireAdmin, deleteEmployee);
 
 export default router;

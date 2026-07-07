@@ -17,17 +17,26 @@ import {
   type UserType,
 } from '../utils/authStorage';
 import { navigateTo, setNavigate } from '../utils/navigation';
+import type { EmployeeRole } from '../services/apiService';
 
 export type { UserType };
+
+export type { EmployeeRole };
 
 interface AuthContextValue {
   token: string | null;
   user: UserType | null;
   isLoggedIn: boolean;
-  isHRManager: boolean;
+  isAdmin: boolean;
+  isHR: boolean;
+  isManager: boolean;
   isEmployee: boolean;
+  /** True for Admin or HR */
+  isHRManager: boolean;
   login: (newToken: string, newUser: UserType, rememberMe?: boolean) => void;
   logout: () => void;
+  /** Update stored user data (e.g. after profile edit) without changing token */
+  updateUser: (updatedUser: UserType) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -69,17 +78,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigateTo('/');
   }, []);
 
+  const updateUser = useCallback((updatedUser: UserType): void => {
+    writeStoredAuth(token ?? '', updatedUser, !!token);
+    setUser(updatedUser);
+  }, [token]);
+
+  const role = user?.role;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
       user,
       isLoggedIn: token !== null,
-      isHRManager: user?.role === 'hr_manager',
-      isEmployee: user?.role === 'employee',
+      isAdmin: role === 'Admin',
+      isHR: role === 'HR',
+      isManager: role === 'Manager',
+      isEmployee: role === 'Employee',
+      isHRManager: role === 'Admin' || role === 'HR',
       login,
       logout,
+      updateUser,
     }),
-    [token, user, login, logout],
+    [token, user, login, logout, updateUser],
   );
 
   return createElement(AuthContext.Provider, { value }, children);

@@ -41,7 +41,11 @@ const STATUS_CONFIG: Record<
 };
 
 function StatusBadge({ status }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status];
+  const config = STATUS_CONFIG[status.toLowerCase() as StatusBadgeStatus] ?? {
+    label: status,
+    background: 'bg-gray-100 text-gray-700',
+    dot: 'bg-gray-500',
+  };
 
   return (
     <span

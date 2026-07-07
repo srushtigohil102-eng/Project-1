@@ -6,17 +6,17 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
-  errorMessage: string;
+  error: Error | null;
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, errorMessage: '' };
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, errorMessage: error.message };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
@@ -40,9 +40,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <p className="mt-2 text-sm text-gray-500">
             Please refresh the page and try again.
           </p>
-          <p className="mt-4 max-w-md text-xs text-red-600 font-mono bg-red-50 p-3 rounded-lg border border-red-200">
-            {this.state.errorMessage}
-          </p>
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-mono text-red-600">
+            {this.state.error?.message}
+          </div>
           <button
             type="button"
             onClick={this.handleRefresh}

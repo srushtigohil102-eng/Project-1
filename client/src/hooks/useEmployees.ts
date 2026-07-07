@@ -3,9 +3,11 @@ import {
   getEmployees,
   getEmployeeById,
   createEmployee,
+  updateEmployee,
   deleteEmployee,
   type Employee,
   type CreateEmployeeData,
+  type UpdateEmployeeData,
 } from '../services/apiService';
 
 // Re-export Employee type so existing imports in the codebase don't break
@@ -52,6 +54,20 @@ export function useCreateEmployee() {
 }
 
 /**
+ * Hook to update an employee by ID
+ */
+export function useUpdateEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Employee, Error, { id: string; data: UpdateEmployeeData }>({
+    mutationFn: ({ id, data }) => updateEmployee(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
+/**
  * Hook to delete an employee by ID
  */
 export function useDeleteEmployee() {
@@ -61,6 +77,9 @@ export function useDeleteEmployee() {
     mutationFn: deleteEmployee,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (err) => {
+      console.error('[useDeleteEmployee] Error deleting employee:', err);
     },
   });
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCreateEmployee } from '../hooks/useEmployees';
 import { checkEmailAvailable } from '../services/apiService';
+import type { EmployeeRole } from '../services/apiService';
 import { showSuccess } from '../utils/toast';
 import useFocusTrap from '../hooks/useFocusTrap';
 
@@ -11,39 +12,94 @@ interface AddEmployeeModalProps {
 }
 
 interface FormData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  phone: string;
+  phoneNumber: string;
   dateOfBirth: string;
   gender: string;
   department: string;
-  jobTitle: string;
-  employmentType: string;
-  reportingManager: string;
-  startDate: string;
-  basicSalary: string;
-  allowances: string;
-  userRole: string;
-  tempPassword: string;
+  designation: string;
+  joiningDate: string;
+  salary: string;
+  role: EmployeeRole;
+  password: string;
   confirmPassword: string;
 }
 
 interface FormErrors {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  phone?: string;
+  phoneNumber?: string;
   dateOfBirth?: string;
   gender?: string;
   department?: string;
-  jobTitle?: string;
-  employmentType?: string;
-  reportingManager?: string;
-  startDate?: string;
-  basicSalary?: string;
-  allowances?: string;
-  userRole?: string;
-  tempPassword?: string;
+  designation?: string;
+  joiningDate?: string;
+  salary?: string;
+  role?: string;
+  password?: string;
   confirmPassword?: string;
+}
+
+const ROLE_OPTIONS: { value: EmployeeRole; label: string }[] = [
+  { value: 'Employee', label: 'Employee' },
+  { value: 'Manager', label: 'Manager' },
+  { value: 'HR', label: 'HR' },
+  { value: 'Admin', label: 'Admin' },
+];
+
+const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const;
+const DEPARTMENT_OPTIONS = ['Engineering', 'Design', 'HR', 'Finance', 'Marketing', 'Operations', 'Sales'] as const;
+
+const FORM_SESSION_KEY = 'hrms_add_employee_form';
+
+const initialFormState: FormData = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phoneNumber: '',
+  dateOfBirth: '',
+  gender: '',
+  department: '',
+  designation: '',
+  joiningDate: '',
+  salary: '',
+  role: 'Employee',
+  password: '',
+  confirmPassword: '',
+};
+
+function formatIndianCurrency(amount: number): string {
+  const numStr = Math.round(amount).toString();
+  if (numStr.length <= 3) return numStr;
+  const lastThree = numStr.slice(-3);
+  const rest = numStr.slice(0, -3);
+  const groups: string[] = [];
+  let remaining = rest;
+  while (remaining.length > 0) {
+    if (remaining.length <= 2) {
+      groups.unshift(remaining);
+      break;
+    }
+    groups.unshift(remaining.slice(-2));
+    remaining = remaining.slice(0, -2);
+  }
+  return groups.join(',') + ',' + lastThree;
+}
+
+function getPasswordStrength(password: string): { label: string; barColor: string; barWidth: string; textColor: string } {
+  if (!password) return { label: '', barColor: '', barWidth: 'w-0', textColor: '' };
+  if (password.length < 8) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
+  let types = 0;
+  if (/[a-z]/.test(password)) types++;
+  if (/[A-Z]/.test(password)) types++;
+  if (/[0-9]/.test(password)) types++;
+  if (/[^a-zA-Z0-9]/.test(password)) types++;
+  if (types <= 1) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
+  if (types === 2) return { label: 'Medium', barColor: 'bg-amber-500', barWidth: 'w-2/4', textColor: 'text-amber-600' };
+  return { label: 'Strong', barColor: 'bg-green-500', barWidth: 'w-3/4', textColor: 'text-green-600' };
 }
 
 function XIcon({ className = 'h-5 w-5' }: { className?: string }) {
@@ -88,61 +144,6 @@ function EyeOffIcon({ className = 'h-5 w-5' }: { className?: string }) {
   );
 }
 
-const GENDER_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const;
-const DEPARTMENT_OPTIONS = ['Engineering', 'Design', 'HR', 'Finance', 'Marketing', 'Operations', 'Sales'] as const;
-const EMPLOYMENT_TYPES = ['Full Time', 'Part Time', 'Contract', 'Intern'] as const;
-
-const FORM_SESSION_KEY = 'hrms_add_employee_form';
-
-const initialFormState: FormData = {
-  fullName: '',
-  email: '',
-  phone: '',
-  dateOfBirth: '',
-  gender: '',
-  department: '',
-  jobTitle: '',
-  employmentType: '',
-  reportingManager: '',
-  startDate: '',
-  basicSalary: '',
-  allowances: '0',
-  userRole: 'Employee',
-  tempPassword: '',
-  confirmPassword: '',
-};
-
-function formatIndianCurrency(amount: number): string {
-  const numStr = Math.round(amount).toString();
-  if (numStr.length <= 3) return numStr;
-  const lastThree = numStr.slice(-3);
-  const rest = numStr.slice(0, -3);
-  const groups: string[] = [];
-  let remaining = rest;
-  while (remaining.length > 0) {
-    if (remaining.length <= 2) {
-      groups.unshift(remaining);
-      break;
-    }
-    groups.unshift(remaining.slice(-2));
-    remaining = remaining.slice(0, -2);
-  }
-  return groups.join(',') + ',' + lastThree;
-}
-
-function getPasswordStrength(password: string): { label: string; barColor: string; barWidth: string; textColor: string } {
-  if (!password) return { label: '', barColor: '', barWidth: 'w-0', textColor: '' };
-  if (password.length < 8) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
-  let types = 0;
-  if (/[a-z]/.test(password)) types++;
-  if (/[A-Z]/.test(password)) types++;
-  if (/[0-9]/.test(password)) types++;
-  if (/[^a-zA-Z0-9]/.test(password)) types++;
-  if (types <= 1) return { label: 'Weak', barColor: 'bg-red-500', barWidth: 'w-1/4', textColor: 'text-red-600' };
-  if (types === 2) return { label: 'Medium', barColor: 'bg-amber-500', barWidth: 'w-2/4', textColor: 'text-amber-600' };
-  return { label: 'Strong', barColor: 'bg-green-500', barWidth: 'w-3/4', textColor: 'text-green-600' };
-}
-
 function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps) {
   const createEmployeeMutation = useCreateEmployee();
   const [step, setStep] = useState(1);
@@ -152,28 +153,22 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Email availability
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
   const emailDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Dirty tracking
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  // Session restore
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
 
-  // Auto-focus refs per step
   const step1Ref = useRef<HTMLInputElement>(null);
   const step2Ref = useRef<HTMLSelectElement>(null);
   const step3Ref = useRef<HTMLInputElement>(null);
 
-  // On mount, check for saved form data
   useEffect(() => {
     if (isOpen) {
       const saved = sessionStorage.getItem(FORM_SESSION_KEY);
       if (saved) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowRestorePrompt(true);
       } else {
         setFormData(initialFormState);
@@ -208,7 +203,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     setShowRestorePrompt(false);
   }, []);
 
-  // Auto-focus on step change
   useEffect(() => {
     const timer = setTimeout(() => {
       if (step === 1) step1Ref.current?.focus();
@@ -218,11 +212,9 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     return () => clearTimeout(timer);
   }, [step]);
 
-  // Email availability debounce check
   useEffect(() => {
     const email = formData.email.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEmailStatus('idle');
       return;
     }
@@ -249,7 +241,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     };
   }, [formData.email]);
 
-  // Save form data to sessionStorage on changes
   useEffect(() => {
     if (isDirty) {
       sessionStorage.setItem(FORM_SESSION_KEY, JSON.stringify(formData));
@@ -274,12 +265,13 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
   const validateStep1 = (): boolean => {
     const newErrors: FormErrors = {};
-    const trimmedName = formData.fullName.trim();
 
-    if (!trimmedName) {
-      newErrors.fullName = 'Full name is required.';
-    } else if (trimmedName.length < 2) {
-      newErrors.fullName = 'Name must be at least 2 characters.';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required.';
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required.';
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -289,8 +281,8 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
       newErrors.email = 'Enter a valid email address.';
     }
 
-    if (formData.phone && !/^\d*$/.test(formData.phone)) {
-      newErrors.phone = 'Phone number must contain only digits.';
+    if (formData.phoneNumber && !/^\d*$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Phone number must contain only digits.';
     }
 
     setErrors(newErrors);
@@ -304,18 +296,14 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
       newErrors.department = 'Department is required.';
     }
 
-    if (!formData.jobTitle.trim()) {
-      newErrors.jobTitle = 'Job title is required.';
+    if (!formData.designation.trim()) {
+      newErrors.designation = 'Designation is required.';
     }
 
-    if (!formData.employmentType) {
-      newErrors.employmentType = 'Employment type is required.';
-    }
-
-    if (!formData.startDate) {
-      newErrors.startDate = 'Start date is required.';
-    } else if (formData.startDate < getTodayString()) {
-      newErrors.startDate = 'Start date cannot be in the past.';
+    if (!formData.joiningDate) {
+      newErrors.joiningDate = 'Joining date is required.';
+    } else if (formData.joiningDate < getTodayString()) {
+      newErrors.joiningDate = 'Joining date cannot be in the past.';
     }
 
     setErrors(newErrors);
@@ -325,23 +313,23 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   const validateStep3 = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.basicSalary || Number(formData.basicSalary) <= 0) {
-      newErrors.basicSalary = 'Basic salary must be a positive number.';
+    if (!formData.salary || Number(formData.salary) <= 0) {
+      newErrors.salary = 'Salary must be a positive number.';
     }
 
-    if (formData.allowances && Number(formData.allowances) < 0) {
-      newErrors.allowances = 'Allowances cannot be negative.';
+    if (!formData.role) {
+      newErrors.role = 'System role is required.';
     }
 
-    if (!formData.tempPassword) {
-      newErrors.tempPassword = 'Temporary password is required.';
-    } else if (formData.tempPassword.length < 8) {
-      newErrors.tempPassword = 'Password must be at least 8 characters.';
+    if (!formData.password) {
+      newErrors.password = 'Temporary password is required.';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters.';
     }
 
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm the password.';
-    } else if (formData.tempPassword !== formData.confirmPassword) {
+    } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match.';
     }
 
@@ -367,38 +355,25 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
     setApiError(null);
     setErrors({});
 
-    const fieldToBackend: Record<string, string> = {
-      fullName: 'name',
-      jobTitle: 'role',
-      startDate: 'startDate',
-      department: 'department',
-      employmentType: 'employmentType',
-      basicSalary: 'basicSalary',
-      allowances: 'allowances',
-      tempPassword: 'password',
-      email: 'email',
-      phone: 'phone',
-      userRole: 'systemRole',
-    };
-
     try {
       await createEmployeeMutation.mutateAsync({
-        name: formData.fullName.trim(),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         email: formData.email.trim(),
-        phone: formData.phone || undefined,
+        phoneNumber: formData.phoneNumber || '',
+        role: formData.role,
         department: formData.department,
-        role: formData.jobTitle.trim(),
-        employmentType: formData.employmentType,
-        startDate: formData.startDate,
-        basicSalary: Number(formData.basicSalary),
-        allowances: Number(formData.allowances) || 0,
-        systemRole: formData.userRole === 'HR Manager' ? 'hr_manager' : 'employee',
-        password: formData.tempPassword,
+        designation: formData.designation.trim(),
+        salary: Number(formData.salary),
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        joiningDate: formData.joiningDate,
+        password: formData.password,
       });
 
       sessionStorage.removeItem(FORM_SESSION_KEY);
       onClose();
-      showSuccess('Employee added successfully!');
+      showSuccess(`${formData.firstName} ${formData.lastName} added successfully!`);
       onSuccess();
     } catch (err) {
       const error = err as Error & { body?: { message?: string; errors?: Array<{ field: string; message: string }> } };
@@ -413,23 +388,23 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
       if (body?.errors && Array.isArray(body.errors)) {
         const newErrors: FormErrors = {};
         for (const fe of body.errors) {
-          const frontendField = Object.entries(fieldToBackend).find(
-            ([, backend]) => backend === fe.field,
-          )?.[0];
-          if (frontendField && frontendField in newErrors) {
-            newErrors[frontendField as keyof FormErrors] = fe.message;
-          } else if (frontendField) {
-            newErrors[frontendField as keyof FormErrors] = fe.message;
-          }
+          if (fe.field === 'firstName') newErrors.firstName = fe.message;
+          else if (fe.field === 'lastName') newErrors.lastName = fe.message;
+          else if (fe.field === 'email') newErrors.email = fe.message;
+          else if (fe.field === 'department') newErrors.department = fe.message;
+          else if (fe.field === 'designation') newErrors.designation = fe.message;
+          else if (fe.field === 'salary') newErrors.salary = fe.message;
+          else if (fe.field === 'password') newErrors.password = fe.message;
         }
         setErrors(newErrors);
 
         if (newErrors.email) setStep(1);
-        else if (newErrors.department || newErrors.jobTitle || newErrors.employmentType || newErrors.startDate) setStep(2);
+        else if (newErrors.department || newErrors.designation || newErrors.joiningDate) setStep(2);
         return;
       }
 
-      setApiError(error.message || 'Failed to add employee');
+      const serverMsg = body?.error || body?.message || error.message;
+      setApiError(serverMsg || 'Failed to add employee');
     }
   };
 
@@ -458,17 +433,17 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
   if (!isOpen) return null;
 
   const isStep1Valid =
-    formData.fullName.trim().length >= 2 &&
+    formData.firstName.trim().length >= 1 &&
+    formData.lastName.trim().length >= 1 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
     emailStatus !== 'unavailable' &&
     emailStatus !== 'checking';
 
   const isStep2Valid =
     formData.department !== '' &&
-    formData.jobTitle.trim().length > 0 &&
-    formData.employmentType !== '' &&
-    formData.startDate !== '' &&
-    formData.startDate >= getTodayString();
+    formData.designation.trim().length > 0 &&
+    formData.joiningDate !== '' &&
+    formData.joiningDate >= getTodayString();
 
   const renderStepIndicator = () => {
     const steps = [
@@ -528,8 +503,9 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
         className="absolute inset-0 bg-gray-900/50 backdrop-blur-xs"
         onClick={handleClose}
       />
-      <div ref={focusTrapRef} role="dialog" className="relative w-full max-w-[520px] transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl border border-gray-150 transition-all">
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+      <div ref={focusTrapRef} role="dialog" className="relative flex w-full max-w-lg mx-4 flex-col rounded-2xl bg-white shadow-2xl border border-gray-150 transition-all max-h-[90vh]">
+        {/* STICKY HEADER */}
+        <div className="flex items-center justify-between shrink-0 px-6 pt-6 pb-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">Add New Employee</h3>
           <button
             type="button"
@@ -540,28 +516,6 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
             <XIcon className="h-5 w-5" />
           </button>
         </div>
-
-        {showRestorePrompt && (
-          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 flex items-center justify-between gap-3">
-            <span>You have unsaved form data from before. Would you like to continue where you left off?</span>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleRestoreYes}
-                className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={handleRestoreNo}
-                className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
-              >
-                No
-              </button>
-            </div>
-          </div>
-        )}
 
         {showCloseConfirm && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -596,8 +550,34 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
           </div>
         )}
 
-        {renderStepIndicator()}
+        {/* STICKY STEP INDICATOR */}
+        <div className="shrink-0 px-6 pt-4">
+          {renderStepIndicator()}
+        </div>
 
+        {/* SCROLLABLE FORM BODY */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
+        {showRestorePrompt && (
+          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 border border-amber-200 flex items-center justify-between gap-3">
+            <span>You have unsaved form data from before. Would you like to continue where you left off?</span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleRestoreYes}
+                className="rounded-md bg-amber-600 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-700 cursor-pointer"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreNo}
+                className="rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
         {apiError && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100 flex items-start gap-2">
             <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -607,27 +587,47 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
           </div>
         )}
 
-        {/* Step 1: Personal Information */}
         {step === 1 && (
           <div className="space-y-4">
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-semibold text-gray-700 mb-1">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                ref={step1Ref}
-                type="text"
-                id="fullName"
-                placeholder="John Doe"
-                value={formData.fullName}
-                onChange={(e) => updateField('fullName', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                  errors.fullName
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                }`}
-              />
-              {errors.fullName && <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-1">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  ref={step1Ref}
+                  type="text"
+                  id="firstName"
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={(e) => updateField('firstName', e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.firstName
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
+                {errors.firstName && <p className="text-xs text-red-600 mt-1">{errors.firstName}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={(e) => updateField('lastName', e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.lastName
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
+                {errors.lastName && <p className="text-xs text-red-600 mt-1">{errors.lastName}</p>}
+              </div>
             </div>
 
             <div>
@@ -683,26 +683,26 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-1">
+                <label htmlFor="phoneNumber" className="block text-sm font-semibold text-gray-700 mb-1">
                   Phone Number
                 </label>
                 <input
                   type="tel"
-                  id="phone"
+                  id="phoneNumber"
                   placeholder="9876543210"
-                  value={formData.phone}
+                  value={formData.phoneNumber}
                   onChange={(e) => {
                     if (/^\d*$/.test(e.target.value)) {
-                      updateField('phone', e.target.value);
+                      updateField('phoneNumber', e.target.value);
                     }
                   }}
                   className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                    errors.phone
+                    errors.phoneNumber
                       ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                       : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
                   }`}
                 />
-                {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
+                {errors.phoneNumber && <p className="text-xs text-red-600 mt-1">{errors.phoneNumber}</p>}
               </div>
 
               <div>
@@ -736,30 +736,9 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               </select>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!isStep1Valid}
-                onClick={handleNextStep1}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Next
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Step 2: Department and Role */}
         {step === 2 && (
           <div className="space-y-4">
             <div>
@@ -786,245 +765,111 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
             </div>
 
             <div>
-              <label htmlFor="jobTitle" className="block text-sm font-semibold text-gray-700 mb-1">
-                Job Title / Role <span className="text-red-500">*</span>
+              <label htmlFor="designation" className="block text-sm font-semibold text-gray-700 mb-1">
+                Designation <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                id="jobTitle"
+                id="designation"
                 placeholder="Senior Software Engineer"
-                value={formData.jobTitle}
-                onChange={(e) => updateField('jobTitle', e.target.value)}
+                value={formData.designation}
+                onChange={(e) => updateField('designation', e.target.value)}
                 className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                  errors.jobTitle
+                  errors.designation
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
                 }`}
               />
-              {errors.jobTitle && <p className="text-xs text-red-600 mt-1">{errors.jobTitle}</p>}
+              {errors.designation && <p className="text-xs text-red-600 mt-1">{errors.designation}</p>}
             </div>
 
             <div>
-              <label htmlFor="employmentType" className="block text-sm font-semibold text-gray-700 mb-1">
-                Employment Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="employmentType"
-                value={formData.employmentType}
-                onChange={(e) => updateField('employmentType', e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm bg-white text-gray-950 focus:outline-hidden focus:ring-2 ${
-                  errors.employmentType
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                }`}
-              >
-                <option value="">Select type</option>
-                {EMPLOYMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              {errors.employmentType && <p className="text-xs text-red-600 mt-1">{errors.employmentType}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="reportingManager" className="block text-sm font-semibold text-gray-700 mb-1">
-                Reporting Manager
-              </label>
-              <input
-                type="text"
-                id="reportingManager"
-                placeholder="Manager name"
-                value={formData.reportingManager}
-                onChange={(e) => updateField('reportingManager', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="startDate" className="block text-sm font-semibold text-gray-700 mb-1">
-                Start Date <span className="text-red-500">*</span>
+              <label htmlFor="joiningDate" className="block text-sm font-semibold text-gray-700 mb-1">
+                Joining Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
-                id="startDate"
+                id="joiningDate"
                 min={getTodayString()}
-                value={formData.startDate}
-                onChange={(e) => updateField('startDate', e.target.value)}
+                value={formData.joiningDate}
+                onChange={(e) => updateField('joiningDate', e.target.value)}
                 className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-950 focus:outline-hidden focus:ring-2 [color-scheme:light] ${
-                  errors.startDate
+                  errors.joiningDate
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
                 }`}
               />
-              {errors.startDate && <p className="text-xs text-red-600 mt-1">{errors.startDate}</p>}
+              {errors.joiningDate && <p className="text-xs text-red-600 mt-1">{errors.joiningDate}</p>}
             </div>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 mt-6">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={!isStep2Valid}
-                onClick={handleNextStep2}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Next
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Step 3: Salary and System Access */}
         {step === 3 && (
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Compensation Details</h4>
+            <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Compensation</h4>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="basicSalary" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Basic Salary (Monthly) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
-                  <input
-                    ref={step3Ref}
-                    type="number"
-                    id="basicSalary"
-                    placeholder="50000"
-                    min={1}
-                    value={formData.basicSalary}
-                    onChange={(e) => updateField('basicSalary', e.target.value)}
-                    className={`w-full rounded-lg border pl-8 pr-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                      errors.basicSalary
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
-                    }`}
-                  />
-                </div>
-                {errors.basicSalary && <p className="text-xs text-red-600 mt-1">{errors.basicSalary}</p>}
-                {formData.basicSalary && Number(formData.basicSalary) >= 1 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Annual CTC: ₹{formatIndianCurrency(Number(formData.basicSalary) * 12)}
-                  </p>
-                )}
+            <div>
+              <label htmlFor="salary" className="block text-sm font-semibold text-gray-700 mb-1">
+                Monthly Salary <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
+                <input
+                  ref={step3Ref}
+                  type="number"
+                  id="salary"
+                  placeholder="80000"
+                  min={1}
+                  value={formData.salary}
+                  onChange={(e) => updateField('salary', e.target.value)}
+                  className={`w-full rounded-lg border pl-8 pr-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
+                    errors.salary
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
+                  }`}
+                />
               </div>
-
-              <div>
-                <label htmlFor="allowances" className="block text-sm font-semibold text-gray-700 mb-1">
-                  Monthly Allowances
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">₹</span>
-                  <input
-                    type="number"
-                    id="allowances"
-                    placeholder="8000"
-                    min={0}
-                    value={formData.allowances}
-                    onChange={(e) => updateField('allowances', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 pl-8 pr-3 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
-                  />
-                </div>
-                {errors.allowances && <p className="text-xs text-red-600 mt-1">{errors.allowances}</p>}
-              </div>
+              {errors.salary && <p className="text-xs text-red-600 mt-1">{errors.salary}</p>}
+              {formData.salary && Number(formData.salary) >= 1 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Annual CTC: ₹{formatIndianCurrency(Number(formData.salary) * 12)}
+                </p>
+              )}
             </div>
-
-            {/* Net Salary Preview Card */}
-            {(formData.basicSalary && Number(formData.basicSalary) >= 1) && (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 space-y-1.5">
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-2">Net Salary Preview</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Basic (Monthly):</span>
-                  <span className="font-semibold text-gray-900">₹{formatIndianCurrency(Number(formData.basicSalary))}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Allowances:</span>
-                  <span className="font-semibold text-gray-900">₹{formatIndianCurrency(Number(formData.allowances) || 0)}</span>
-                </div>
-                <hr className="border-emerald-200 my-1" />
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-gray-800">Total Monthly:</span>
-                  <span className="text-gray-900">₹{formatIndianCurrency(Number(formData.basicSalary) + (Number(formData.allowances) || 0))}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-gray-800">Annual CTC:</span>
-                  <span className="text-blue-700">₹{formatIndianCurrency((Number(formData.basicSalary) + (Number(formData.allowances) || 0)) * 12)}</span>
-                </div>
-              </div>
-            )}
 
             <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide pt-2">System Access</h4>
 
-            {/* Role Radio Cards */}
             <div>
-              <p className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-1">
                 System Role <span className="text-red-500">*</span>
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => updateField('userRole', 'Employee')}
-                  className={`flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all cursor-pointer ${
-                    formData.userRole === 'Employee'
-                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-2xl">👤</span>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">Employee</p>
-                    <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
-                      Can view dashboard, apply for leave, and download payslips
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => updateField('userRole', 'HR Manager')}
-                  className={`flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all cursor-pointer ${
-                    formData.userRole === 'HR Manager'
-                      ? 'border-blue-500 bg-blue-50/70 shadow-xs'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-2xl">👥</span>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">HR Manager</p>
-                    <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
-                      Full access to manage employees, approve leaves, and run payroll
-                    </p>
-                  </div>
-                </button>
-              </div>
-              {errors.userRole && <p className="text-xs text-red-600 mt-1">{errors.userRole}</p>}
+              </label>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => updateField('role', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-950 focus:outline-hidden focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20"
+              >
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+              {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
             </div>
 
-            {/* Temporary Password */}
             <div>
-              <label htmlFor="tempPassword" className="block text-sm font-semibold text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1">
                 Temporary Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="tempPassword"
+                  id="password"
                   placeholder="Min 8 characters"
-                  value={formData.tempPassword}
-                  onChange={(e) => updateField('tempPassword', e.target.value)}
+                  value={formData.password}
+                  onChange={(e) => updateField('password', e.target.value)}
                   className={`w-full rounded-lg border px-3 py-2 pr-10 text-sm text-gray-950 placeholder-gray-400 focus:outline-hidden focus:ring-2 ${
-                    errors.tempPassword
+                    errors.password
                       ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                       : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
                   }`}
@@ -1038,21 +883,20 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                   {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                 </button>
               </div>
-              {formData.tempPassword && (
+              {formData.password && (
                 <div className="mt-1.5">
                   <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${getPasswordStrength(formData.tempPassword).barColor} ${getPasswordStrength(formData.tempPassword).barWidth}`} />
+                    <div className={`h-full rounded-full transition-all ${getPasswordStrength(formData.password).barColor} ${getPasswordStrength(formData.password).barWidth}`} />
                   </div>
-                  <p className={`text-xs font-medium mt-0.5 ${getPasswordStrength(formData.tempPassword).textColor}`}>
-                    {getPasswordStrength(formData.tempPassword).label}
+                  <p className={`text-xs font-medium mt-0.5 ${getPasswordStrength(formData.password).textColor}`}>
+                    {getPasswordStrength(formData.password).label}
                   </p>
                 </div>
               )}
               <p className="text-xs text-gray-400 mt-1">User will change this on first login.</p>
-              {errors.tempPassword && <p className="text-xs text-red-600 mt-1">{errors.tempPassword}</p>}
+              {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password}</p>}
             </div>
 
-            {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-1">
                 Confirm Password <span className="text-red-500">*</span>
@@ -1078,14 +922,14 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 >
                   {showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                 </button>
-                {formData.confirmPassword && formData.tempPassword === formData.confirmPassword && (
+                {formData.confirmPassword && formData.password === formData.confirmPassword && (
                   <span className="absolute right-10 top-1/2 -translate-y-1/2 text-green-500">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </span>
                 )}
-                {formData.confirmPassword && formData.tempPassword !== formData.confirmPassword && (
+                {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                   <span className="absolute right-10 top-1/2 -translate-y-1/2 text-red-500">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1096,28 +940,81 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               {errors.confirmPassword && <p className="text-xs text-red-600 mt-1">{errors.confirmPassword}</p>}
             </div>
 
-            {/* Review Summary */}
             <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 space-y-1.5">
               <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Review Summary</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <span className="text-gray-500">Name:</span>
-                <span className="font-medium text-gray-900 truncate">{formData.fullName || '—'}</span>
+                <span className="font-medium text-gray-900 truncate">{formData.firstName} {formData.lastName}</span>
                 <span className="text-gray-500">Email:</span>
                 <span className="font-medium text-gray-900 truncate">{formData.email || '—'}</span>
                 <span className="text-gray-500">Department:</span>
                 <span className="font-medium text-gray-900">{formData.department || '—'}</span>
-                <span className="text-gray-500">Role:</span>
-                <span className="font-medium text-gray-900 truncate">{formData.jobTitle || '—'}</span>
+                <span className="text-gray-500">Designation:</span>
+                <span className="font-medium text-gray-900 truncate">{formData.designation || '—'}</span>
                 <span className="text-gray-500">Salary:</span>
                 <span className="font-medium text-gray-900">
-                  {formData.basicSalary ? `₹${formatIndianCurrency(Number(formData.basicSalary))}/mo` : '—'}
+                  {formData.salary ? `₹${formatIndianCurrency(Number(formData.salary))}/mo` : '—'}
                 </span>
                 <span className="text-gray-500">System Role:</span>
-                <span className="font-medium text-gray-900">{formData.userRole || '—'}</span>
+                <span className="font-medium text-gray-900">{formData.role || '—'}</span>
               </div>
             </div>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-gray-100 mt-6">
+          </div>
+        )}
+        </div>
+
+        {/* STICKY FOOTER */}
+        <div className="shrink-0 px-6 pb-6 pt-4 border-t border-gray-100">
+          {step === 1 && (
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!isStep1Valid}
+                onClick={handleNextStep1}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={!isStep2Valid}
+                onClick={handleNextStep2}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="flex justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setStep(2)}
@@ -1132,12 +1029,12 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
               <button
                 type="button"
                 disabled={
-                  !formData.basicSalary ||
-                  Number(formData.basicSalary) <= 0 ||
-                  !formData.tempPassword ||
-                  formData.tempPassword.length < 8 ||
+                  !formData.salary ||
+                  Number(formData.salary) <= 0 ||
+                  !formData.password ||
+                  formData.password.length < 8 ||
                   !formData.confirmPassword ||
-                  formData.tempPassword !== formData.confirmPassword ||
+                  formData.password !== formData.confirmPassword ||
                   createEmployeeMutation.isPending
                 }
                 onClick={handleSubmit}
@@ -1147,8 +1044,8 @@ function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModalProps)
                 {createEmployeeMutation.isPending ? 'Adding Employee...' : 'Add Employee'}
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
